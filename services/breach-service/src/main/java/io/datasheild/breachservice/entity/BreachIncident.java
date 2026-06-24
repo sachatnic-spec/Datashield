@@ -98,6 +98,9 @@ public class BreachIncident {
     @Column
     private UUID dpbiFormId;
 
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
     @Column
     @UpdateTimestamp
     private LocalDateTime updatedAt;

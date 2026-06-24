@@ -32,11 +32,6 @@ public class SecurityConfig {
     private final CustomAuthenticationProvider customAuthenticationProvider;
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-
-    @Bean
     public AuthenticationManager authenticationManager() {
         return new ProviderManager(customAuthenticationProvider);
     }

@@ -3,9 +3,9 @@ spring:
     name: consent-service
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
-      hibernate.dialect: org.hibernate.dialect.PostgreSQL10Dialect
+      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
       hibernate.default_schema: consent
   datasource:
     url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=consent
