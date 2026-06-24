@@ -1,0 +1,23 @@
+{
+  "name": "@datasheild/consent-widget",
+  "version": "1.0.0",
+  "description": "DataShield India - Embeddable Consent Widget SDK",
+  "main": "dist/consent-widget.js",
+  "types": "dist/consent-widget.d.ts",
+  "scripts": {
+    "build": "tsc && rollup -c",
+    "dev": "tsc --watch",
+    "test": "jest"
+  },
+  "keywords": ["consent", "dpdp", "privacy", "widget", "gdpr"],
+  "author": "DataShield India",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^20.11.0",
+    "rollup": "^4.9.6",
+    "rollup-plugin-terser": "^7.0.2",
+    "typescript": "^5.7.0"
+  }
+}

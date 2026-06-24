@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: audit-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.dialect: org.hibernate.dialect.PostgreSQL10Dialect
+      hibernate.default_schema: audit
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=audit
+    username: datasheild
+    password: datasheild_dev_pwd
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 600000
+  redis:
+    host: localhost
+    port: 6379
+    password: datasheild_dev_pwd
+    timeout: 60000
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      bootstrap-servers: localhost:29092
+      group-id: audit-service
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+  task:
+    scheduling:
+      pool:
+        size: 5
+      thread-name-prefix: audit-scheduler-
+
+server:
+  port: 8006
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    io.datasheild: DEBUG
+    org.hibernate.SQL: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: audit-service
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+

@@ -1,0 +1,72 @@
+server:
+  port: 8026
+
+spring:
+  application:
+    name: config-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/datasheild_config}
+    username: ${DB_USERNAME:datasheild}
+    password: ${DB_PASSWORD:datasheild}
+    hikari:
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS config
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: config
+        jdbc:
+          time_zone: UTC
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 10
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        compression.type: snappy
+        linger.ms: 20
+        delivery.timeout.ms: 120000
+        spring.json.add.type.headers: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  cache:
+    ttl: PT1H
+
+datasheild:
+  vault:
+    key: ${DATASHEILD_VAULT_KEY:change-me-config-service-local-key}
+    key-version: 1
+
+logging:
+  level:
+    com.datasheild.configservice: INFO

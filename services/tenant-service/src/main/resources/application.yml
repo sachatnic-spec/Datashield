@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: tenant-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+        jdbc:
+          batch_size: 20
+        order_updates: true
+        order_inserts: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild
+    username: datasheild
+    password: datasheild_dev_pwd
+    hikari:
+      maximum-pool-size: 20
+  redis:
+    host: localhost
+    port: 6379
+    password: datasheild_dev_pwd
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      batch-size: 32768
+      linger-ms: 10
+      acks: all
+    properties:
+      enable.idempotence: true
+
+server:
+  port: 8007
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    io.datasheild: DEBUG
+    org.springframework.kafka: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+tenant:
+  schema:
+    prefix: t_

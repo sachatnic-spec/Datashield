@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataShield Consent Widget - Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f9fafb;
+    }
+    .demo-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #1f2937;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .code {
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔒 DataShield Consent Widget</h1>
+  <p class="subtitle">Embeddable consent management for DPDP Act 2023 compliance</p>
+
+  <div class="demo-card">
+    <h2>Demo Controls</h2>
+    <p>Click below to see the consent widget in action:</p>
+    <button onclick="showWidget()">Show Consent Widget</button>
+    <button onclick="showDarkWidget()">Show Dark Theme</button>
+    <button onclick="clearConsent()">Clear Stored Consent</button>
+  </div>
+
+  <div class="demo-card">
+    <h2>Installation</h2>
+    <p>Install via NPM:</p>
+    <pre class="code">npm install @datasheild/consent-widget</pre>
+  </div>
+
+  <div class="demo-card">
+    <h2>Usage - Script Tag</h2>
+    <pre class="code">&lt;script src="https://cdn.datasheild.in/consent-widget.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  window.DataShieldConfig = {
+    apiUrl: 'https://api.datasheild.in/v1',
+    tenantId: 'your-tenant-id',
+    purposes: [
+      {
+        id: 'essential',
+        name: 'Essential Services',
+        description: 'Required for platform functionality',
+        required: true,
+        category: 'ESSENTIAL'
+      },
+      {
+        id: 'marketing',
+        name: 'Marketing Communications',
+        description: 'Send promotional emails and offers',
+        required: false,
+        category: 'MARKETING'
+      }
+    ],
+    theme: 'light',
+    position: 'bottom',
+    onConsentGranted: (consent) => {
+      console.log('Consent granted:', consent);
+    }
+  };
+&lt;/script&gt;</pre>
+  </div>
+
+  <div class="demo-card">
+    <h2>Usage - Module Import</h2>
+    <pre class="code">import { DataShieldConsentWidget } from '@datasheild/consent-widget';
+
+const widget = new DataShieldConsentWidget({
+  apiUrl: 'https://api.datasheild.in/v1',
+  tenantId: 'your-tenant-id',
+  purposes: [
+    {
+      id: 'analytics',
+      name: 'Analytics',
+      description: 'Help us improve our services',
+      required: false,
+      category: 'ANALYTICS'
+    }
+  ],
+  onConsentGranted: (consent) => {
+    // Handle consent
+    console.log('User granted consent:', consent);
+  },
+  onConsentWithdrawn: (consentId) => {
+    // Handle withdrawal
+    console.log('User withdrew consent:', consentId);
+  }
+});
+
+widget.init();</pre>
+  </div>
+
+  <div class="demo-card">
+    <h2>Features</h2>
+    <ul>
+      <li>✅ DPDP Act 2023 compliant</li>
+      <li>✅ Lightweight (&lt;10KB gzipped)</li>
+      <li>✅ No external dependencies</li>
+      <li>✅ Dark mode support</li>
+      <li>✅ Multi-language ready</li>
+      <li>✅ Customizable themes</li>
+      <li>✅ Accessible (WCAG 2.1 AA)</li>
+      <li>✅ Mobile responsive</li>
+    </ul>
+  </div>
+
+  <!-- Load widget script -->
+  <script src="../dist/consent-widget.js"></script>
+  
+  <script>
+    function showWidget() {
+      const widget = new DataShieldConsentWidget({
+        apiUrl: 'http://localhost:8002/api/v1',
+        tenantId: 'demo-tenant',
+        purposes: [
+          {
+            id: 'essential',
+            name: 'Essential Services',
+            description: 'Required for the platform to function properly',
+            required: true,
+            category: 'ESSENTIAL'
+          },
+          {
+            id: 'marketing',
+            name: 'Marketing Communications',
+            description: 'Receive promotional emails, newsletters, and special offers',
+            required: false,
+            category: 'MARKETING'
+          },
+          {
+            id: 'analytics',
+            name: 'Analytics & Performance',
+            description: 'Help us improve our services by analyzing usage patterns',
+            required: false,
+            category: 'ANALYTICS'
+          },
+          {
+            id: 'personalization',
+            name: 'Personalization',
+            description: 'Customize your experience based on preferences',
+            required: false,
+            category: 'PERSONALIZATION'
+          }
+        ],
+        theme: 'light',
+        position: 'bottom',
+        language: 'en',
+        onConsentGranted: (consent) => {
+          console.log('✅ Consent granted:', consent);
+          alert('Thank you! Your preferences have been saved.');
+        }
+      });
+      widget.show();
+    }
+
+    function showDarkWidget() {
+      const widget = new DataShieldConsentWidget({
+        apiUrl: 'http://localhost:8002/api/v1',
+        tenantId: 'demo-tenant',
+        purposes: [
+          {
+            id: 'essential',
+            name: 'Essential Services',
+            description: 'Required for platform functionality',
+            required: true,
+            category: 'ESSENTIAL'
+          },
+          {
+            id: 'marketing',
+            name: 'Marketing',
+            description: 'Promotional communications',
+            required: false,
+            category: 'MARKETING'
+          }
+        ],
+        theme: 'dark',
+        position: 'center',
+        onConsentGranted: (consent) => {
+          console.log('✅ Dark theme consent:', consent);
+        }
+      });
+      widget.show();
+    }
+
+    function clearConsent() {
+      localStorage.clear();
+      alert('Consent data cleared. Refresh to see widget again.');
+    }
+  </script>
+</body>
+</html>

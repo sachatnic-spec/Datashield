@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: risk-scoring-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild
+    username: datasheild_user
+    password: secure_password
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 3
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: risk_scoring
+        hbm2ddl.create_namespaces: true
+
+server:
+  port: 8020
+  servlet:
+    context-path: /
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    root: INFO
+    com.datasheild: DEBUG

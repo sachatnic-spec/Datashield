@@ -1,0 +1,34 @@
+# Prometheus configuration for local development
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['localhost:8001']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'consent-service'
+    static_configs:
+      - targets: ['localhost:8002']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'rights-service'
+    static_configs:
+      - targets: ['localhost:8003']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'breach-service'
+    static_configs:
+      - targets: ['localhost:8004']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['localhost:8005']
+    metrics_path: '/actuator/prometheus'

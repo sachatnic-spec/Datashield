@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: workflow-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild
+    username: datasheild
+    password: datasheild_dev_pwd
+    hikari:
+      maximum-pool-size: 20
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+
+server:
+  port: 8008
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    io.datasheild: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
