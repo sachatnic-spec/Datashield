@@ -187,13 +187,8 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- OpenTelemetry / Distributed Tracing -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing-bridge-brave</artifactId>
-            <version>${micrometer.version}</version>
-        </dependency>
-
+        <!-- Spring Cloud Sleuth for Distributed Tracing (Optional - can be added later) -->
+        <!-- Micrometer for Prometheus Metrics -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>

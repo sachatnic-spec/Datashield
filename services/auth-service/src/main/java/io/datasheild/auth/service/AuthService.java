@@ -157,7 +157,7 @@ public class AuthService {
     @Transactional
     public void logout(UUID userId, UUID tenantId) {
         LocalDateTime now = LocalDateTime.now();
-        sessionRepository.revokeAllUserSessions(userId, tenantId);
+        sessionRepository.revokeAllUserSessions(userId, tenantId, now);
         refreshTokenRepository.revokeAllUserTokens(userId, tenantId, now, "User logged out");
 
         log.info("User logged out: {} in tenant: {}", userId, tenantId);

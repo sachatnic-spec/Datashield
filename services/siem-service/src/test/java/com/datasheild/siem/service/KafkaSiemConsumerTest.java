@@ -38,20 +38,20 @@ class KafkaSiemConsumerTest {
 
     @Test
     void shouldParseCriticalAnomaly() {
-        SiemAlert alert = consumer.parseMessage("{"tenantId":"tenant-a","anomalyScore":0.95}", "anomaly.detected");
+        SiemAlert alert = consumer.parseMessage("{\"tenantId\":\"tenant-a\",\"anomalyScore\":0.95}", "anomaly.detected");
         assertThat(alert.getSeverity()).isEqualTo("CRITICAL");
     }
 
     @Test
     void shouldParseBreachAsCritical() {
-        SiemAlert alert = consumer.parseMessage("{"tenantId":"tenant-a"}", "breach.incident.created");
+        SiemAlert alert = consumer.parseMessage("{\"tenantId\":\"tenant-a\"}", "breach.incident.created");
         assertThat(alert.getSeverity()).isEqualTo("CRITICAL");
     }
 
     @Test
     void shouldForwardPersistedAlert() {
         when(repository.save(any(SiemAlert.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        consumer.onPlatformEvent("{"tenantId":"tenant-a","message":"test"}", "audit.entry.created");
+        consumer.onPlatformEvent("{\"tenantId\":\"tenant-a\",\"message\":\"test\"}", "audit.entry.created");
         verify(splunkConnectorService).postEvent(any());
         verify(qRadarConnectorService).postEvent(any());
         verify(azureSentinelConnectorService).postEvent(any());

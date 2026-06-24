@@ -33,6 +33,11 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     List<Tenant> findAllActive();
 
     /**
+     * Find tenants by subscription status
+     */
+    Page<Tenant> findBySubscriptionStatus(Tenant.SubscriptionStatus subscriptionStatus, Pageable pageable);
+
+    /**
      * Find tenants by tier
      */
     Page<Tenant> findByTier(Tenant.TenantTier tier, Pageable pageable);

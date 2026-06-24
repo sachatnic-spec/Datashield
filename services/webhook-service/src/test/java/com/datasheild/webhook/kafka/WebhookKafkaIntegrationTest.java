@@ -43,7 +43,7 @@ class WebhookKafkaIntegrationTest {
     void shouldPublishAndConsumeWebhookEvent() {
         Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
         KafkaTemplate<String, String> template = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps, new StringSerializer(), new StringSerializer()));
-        template.send("connector.synced", "{"tenantId":"tenant-a"}");
+        template.send("connector.synced", "{\"tenantId\":\"tenant-a\"}");
         template.flush();
         ConsumerRecord<String, String> record = KafkaTestUtils.getSingleRecord(consumer, "connector.synced");
         assertThat(record.value()).contains("tenant-a");

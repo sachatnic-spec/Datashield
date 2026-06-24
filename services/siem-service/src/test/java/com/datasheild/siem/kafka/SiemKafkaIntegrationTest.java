@@ -43,7 +43,7 @@ class SiemKafkaIntegrationTest {
     void shouldPublishAndConsumeAnomalyEvent() {
         Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
         KafkaTemplate<String, String> template = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps, new StringSerializer(), new StringSerializer()));
-        template.send("anomaly.detected", "{"tenantId":"tenant-a","anomalyScore":0.88}");
+        template.send("anomaly.detected", "{\"tenantId\":\"tenant-a\",\"anomalyScore\":0.88}");
         template.flush();
         ConsumerRecord<String, String> record = KafkaTestUtils.getSingleRecord(consumer, "anomaly.detected");
         assertThat(record.value()).contains("anomalyScore");

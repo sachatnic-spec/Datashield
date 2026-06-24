@@ -43,7 +43,7 @@ class DpbiKafkaIntegrationTest {
     void shouldPublishAndConsumeBreachEvent() {
         Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
         KafkaTemplate<String, String> template = new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProps, new StringSerializer(), new StringSerializer()));
-        template.send("breach.incident.created", "{"tenantId":"tenant-a","breachId":11}");
+        template.send("breach.incident.created", "{\"tenantId\":\"tenant-a\",\"breachId\":11}");
         template.flush();
         ConsumerRecord<String, String> record = KafkaTestUtils.getSingleRecord(consumer, "breach.incident.created");
         assertThat(record.value()).contains("breachId");

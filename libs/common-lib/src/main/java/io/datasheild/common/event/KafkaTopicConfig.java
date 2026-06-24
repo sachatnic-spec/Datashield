@@ -18,7 +18,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public KafkaAdmin kafkaAdmin() {
-        return new KafkaAdmin(KafkaAdmin.AdminClientProperty.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        return new KafkaAdmin(java.util.Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     @Bean
