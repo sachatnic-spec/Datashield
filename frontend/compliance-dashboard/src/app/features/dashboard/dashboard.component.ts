@@ -18,7 +18,7 @@ import { AuthService } from '../../core/services/auth.service';
             <p class="text-sm text-gray-600">DPDP Act 2023 Monitoring</p>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-gray-600">{{ currentUser()?.name }}</span>
+            <span class="text-sm text-gray-600">{{ currentUser()?.firstName }} {{ currentUser()?.lastName }}</span>
             <button (click)="logout()" class="btn-secondary text-sm">Logout</button>
           </div>
         </div>
@@ -190,7 +190,7 @@ export class DashboardComponent implements OnInit {
   currentUser = this.authService.currentUser;
 
   loadDashboardData(): void {
-    const tenantId = this.currentUser()?.tenantId || 'default';
+    const tenantId = this.authService.getTenantId();
     
     this.analyticsService.getDashboardStats(tenantId).subscribe({
       next: (data) => this.stats.set(data),

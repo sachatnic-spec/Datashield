@@ -52,7 +52,7 @@ public class LineageService {
         List<DataFlow> allFlows = dataFlowRepository.findByTenantId(tenantId);
         
         Map<String, Object> nodes = new HashMap<>();
-        Map<String, Object> edges = new ArrayList<>();
+        Map<String, Object> edges = new HashMap<>();
         
         Set<String> uniqueTables = new HashSet<>();
         for (DataFlow flow : allFlows) {

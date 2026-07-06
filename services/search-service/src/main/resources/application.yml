@@ -17,7 +17,7 @@ spring:
           time_zone: UTC
     open-in-view: false
   kafka:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: localhost:9092
     consumer:
       group-id: search-service-group
       auto-offset-reset: latest
@@ -31,7 +31,7 @@ spring:
         size: 2
 
 server:
-  port: 8027
+  port: 8014
 
 management:
   endpoints:

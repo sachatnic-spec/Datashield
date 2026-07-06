@@ -4,10 +4,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.datasheild</groupId>
-        <artifactId>datasheild-parent</artifactId>
-        <version>1.0.0</version>
+        <artifactId>datasheild-platform</artifactId>
+        <version>1.0.0-MVP</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
+
     <artifactId>vendor-service</artifactId>
     <packaging>jar</packaging>
     <name>DataShield Vendor Service</name>
@@ -44,6 +45,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.datasheild</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>1.0.0-MVP</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>

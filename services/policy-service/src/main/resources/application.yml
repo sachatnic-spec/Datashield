@@ -4,9 +4,9 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/datasheild_policy
-    username: datasheild_admin
-    password: datasheild_secure_123
+    url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=policy
+    username: datasheild
+    password: datasheild_dev_pwd
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -26,7 +26,7 @@ spring:
     default-property-inclusion: non_null
 
 server:
-  port: 8009
+  port: 8010
   servlet:
     context-path: /
 

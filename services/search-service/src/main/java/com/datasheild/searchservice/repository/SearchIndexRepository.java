@@ -17,7 +17,7 @@ public interface SearchIndexRepository extends JpaRepository<SearchIndex, UUID> 
             where s.tenantId = :tenantId
               and s.status <> 'DELETED'
               and (:indexName is null or s.indexName = :indexName)
-              and (:searchTerm is null or lower(s.payloadJson) like lower(concat('%', :searchTerm, '%')))
+              and (:searchTerm is null or s.payloadJson like concat('%', :searchTerm, '%'))
             order by s.createdAt desc
             """)
     Page<SearchIndex> search(@Param("tenantId") String tenantId,

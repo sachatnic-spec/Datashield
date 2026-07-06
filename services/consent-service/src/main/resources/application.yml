@@ -22,15 +22,20 @@ spring:
     password: datasheild_dev_pwd
     timeout: 60000
   kafka:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       acks: all
-      retries: 3
+      retries: 0
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
-      bootstrap-servers: localhost:29092
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
       group-id: consent-service-consumer
+      auto-offset-reset: earliest
+    properties:
+      connections.max.idle.ms: 540000
+      reconnect.backoff.ms: 50
+      reconnect.backoff.max.ms: 1000
   cache:
     type: redis
     redis:

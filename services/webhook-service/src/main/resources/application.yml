@@ -17,7 +17,7 @@ spring:
     init:
       mode: always
   kafka:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: localhost:9092
     producer:
       acks: all
       retries: 3
@@ -40,7 +40,7 @@ spring:
       pool:
         size: 4
 server:
-  port: 8023
+  port: 8015
 logging:
   level:
     root: INFO

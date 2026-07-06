@@ -4,10 +4,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.datasheild</groupId>
-        <artifactId>datasheild-parent</artifactId>
-        <version>1.0.0</version>
+        <artifactId>datasheild-platform</artifactId>
+        <version>1.0.0-MVP</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
+
     <artifactId>policy-service</artifactId>
     <packaging>jar</packaging>
     <name>DataShield Policy Service</name>
@@ -35,15 +36,21 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <dependency>
-            <groupId>io.datasheild</groupId>
-            <artifactId>common-lib</artifactId>
-            <version>1.0.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.datasheild</groupId>-->
+<!--            <artifactId>common-lib</artifactId>-->
+<!--            <version>1.0.0</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.datasheild</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>1.0.0-MVP</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>

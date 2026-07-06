@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.datasheild</groupId>
-        <artifactId>datasheild-parent</artifactId>
-        <version>1.0.0</version>
+        <artifactId>datasheild-platform</artifactId>
+        <version>1.0.0-MVP</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <artifactId>grievance-service</artifactId>
@@ -38,7 +38,6 @@
         <dependency>
             <groupId>io.datasheild</groupId>
             <artifactId>common-lib</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

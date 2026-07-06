@@ -22,18 +22,20 @@ spring:
     port: 6379
     password: datasheild_dev_pwd
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       acks: all
-      retries: 3
+      retries: 0
       batch-size: 32768
       linger-ms: 10
-      acks: all
     properties:
       enable.idempotence: true
+      connections.max.idle.ms: 540000
+      reconnect.backoff.ms: 50
+      reconnect.backoff.max.ms: 1000
 
 server:
-  port: 8007
+  port: 8008
   servlet:
     context-path: /
 

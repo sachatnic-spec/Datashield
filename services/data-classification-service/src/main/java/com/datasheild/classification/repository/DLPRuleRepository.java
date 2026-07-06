@@ -1,6 +1,7 @@
 package com.datasheild.classification.repository;
 
 import com.datasheild.classification.entity.DLPRule;
+import com.datasheild.classification.entity.DataClassification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -21,5 +22,3 @@ public interface DLPRuleRepository extends JpaRepository<DLPRule, UUID> {
     List<DLPRule> findActiveDLPRulesByTenant(UUID tenantId);
 }
 
-// DataClassification import needed
-import com.datasheild.classification.entity.DataClassification;

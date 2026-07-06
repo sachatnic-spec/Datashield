@@ -7,17 +7,21 @@ import { environment } from '../../../environments/environment';
 export interface LoginRequest {
   email: string;
   password: string;
+  tenantId: string;
 }
 
 export interface LoginResponse {
-  token: string;
+  accessToken: string;
   refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
   user: {
-    id: string;
+    userId: string;
     email: string;
-    name: string;
-    role: string;
-    tenantId: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    roles: string[];
   };
 }
 
@@ -27,6 +31,7 @@ export interface LoginResponse {
 export class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'user_data';
+  private readonly TENANT_KEY = 'tenant_id';
 
   currentUser = signal<LoginResponse['user'] | null>(null);
 
@@ -43,22 +48,32 @@ export class AuthService {
       credentials
     ).pipe(
       tap(response => {
-        localStorage.setItem(this.TOKEN_KEY, response.token);
+        localStorage.setItem(this.TOKEN_KEY, response.accessToken);
         localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+        localStorage.setItem(this.TENANT_KEY, credentials.tenantId);
         this.currentUser.set(response.user);
       })
     );
   }
 
   logout(): void {
+    const token = this.getToken();
+    if (token) {
+      this.http.post(`${environment.services.auth}/auth/logout`, {}).subscribe();
+    }
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem(this.TENANT_KEY);
     this.currentUser.set(null);
     this.router.navigate(['/login']);
   }
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  getTenantId(): string {
+    return localStorage.getItem(this.TENANT_KEY) || environment.defaultTenantId;
   }
 
   isAuthenticated(): boolean {

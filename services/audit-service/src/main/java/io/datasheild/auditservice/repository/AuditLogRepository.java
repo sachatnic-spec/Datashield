@@ -24,7 +24,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
     @Query("SELECT al FROM AuditLog al WHERE al.auditEventId = :eventId AND al.tenantId = :tenantId")
     AuditLog findByEventId(@Param("eventId") UUID eventId, @Param("tenantId") UUID tenantId);
 
-    @Query("SELECT al FROM AuditLog al WHERE al.tenantId = :tenantId AND al.archived = false AND al.createdAt < :cutoffDate LIMIT 1000")
+    @Query("SELECT al FROM AuditLog al WHERE al.tenantId = :tenantId AND al.archived = false AND al.createdAt < :cutoffDate ORDER BY al.createdAt LIMIT 1000")
     List<AuditLog> findForArchival(@Param("tenantId") UUID tenantId, @Param("cutoffDate") LocalDateTime cutoffDate);
 
     @Query("SELECT COUNT(al) FROM AuditLog al WHERE al.tenantId = :tenantId AND al.archived = false")

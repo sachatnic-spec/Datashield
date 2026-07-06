@@ -3,10 +3,10 @@ spring:
     name: workflow-service
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQL10Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   datasource:
     url: jdbc:postgresql://localhost:5432/datasheild
     username: datasheild
@@ -20,7 +20,7 @@ spring:
       retries: 3
 
 server:
-  port: 8008
+  port: 8011
   servlet:
     context-path: /
 

@@ -137,7 +137,7 @@ START_DOCKER_STACK.bat
 - **[PYTHON_SETUP.md](PYTHON_SETUP.md)** - Python services
 
 ### Project Info
-- **[README.md](README.md)** - Project overview
+- **[README.md](../README.md)** - Project overview
 - **[MASTER_PLAN.md](MASTER_PLAN.md)** - Architecture & design
 
 ---

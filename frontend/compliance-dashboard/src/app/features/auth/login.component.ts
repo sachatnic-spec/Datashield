@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -48,6 +49,17 @@ import { AuthService } from '../../core/services/auth.service';
               />
             </div>
 
+            <div>
+              <input
+                type="text"
+                [(ngModel)]="tenantId"
+                name="tenantId"
+                required
+                class="input-field"
+                placeholder="Tenant ID"
+              />
+            </div>
+
             <button
               type="submit"
               [disabled]="loading()"
@@ -58,8 +70,7 @@ import { AuthService } from '../../core/services/auth.service';
           </form>
 
           <div class="mt-6 text-xs text-gray-500">
-            <p>Demo Credentials:</p>
-            <p>Email: dpo@example.com | Password: demo123</p>
+            <p>Demo: dpo&#64;example.com / demo1234 / default</p>
           </div>
         </div>
 
@@ -73,6 +84,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   email = '';
   password = '';
+  tenantId = environment.defaultTenantId;
   loading = signal(false);
   error = signal('');
 
@@ -82,22 +94,20 @@ export class LoginComponent {
   ) {}
 
   onLogin(): void {
-    if (!this.email || !this.password) {
-      this.error.set('Please enter email and password');
+    if (!this.email || !this.password || !this.tenantId) {
+      this.error.set('Please fill in all fields');
       return;
     }
 
     this.loading.set(true);
     this.error.set('');
 
-    this.authService.login({ email: this.email, password: this.password })
+    this.authService.login({ email: this.email, password: this.password, tenantId: this.tenantId })
       .subscribe({
-        next: () => {
-          this.router.navigate(['/dashboard']);
-        },
+        next: () => this.router.navigate(['/dashboard']),
         error: (err) => {
           this.loading.set(false);
-          this.error.set(err.error?.message || 'Login failed. Please try again.');
+          this.error.set(err.error?.message || err.message || 'Login failed. Please try again.');
         }
       });
   }

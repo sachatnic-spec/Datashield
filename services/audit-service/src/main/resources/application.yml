@@ -3,9 +3,9 @@ spring:
     name: audit-service
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
-      hibernate.dialect: org.hibernate.dialect.PostgreSQL10Dialect
+      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
       hibernate.default_schema: audit
   datasource:
     url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=audit
@@ -22,12 +22,16 @@ spring:
     password: datasheild_dev_pwd
     timeout: 60000
   kafka:
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      bootstrap-servers: localhost:29092
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
       group-id: audit-service
       auto-offset-reset: earliest
       enable-auto-commit: true
+    properties:
+      connections.max.idle.ms: 540000
+      reconnect.backoff.ms: 50
+      reconnect.backoff.max.ms: 1000
   cache:
     type: redis
     redis:
