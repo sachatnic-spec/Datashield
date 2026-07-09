@@ -1,0 +1,63 @@
+pipeline {
+    agent { label 'windows-local' }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    triggers {
+        // Every job with this trigger fires on each push to the repo;
+        // the 'when { changeset }' guards below make Build/Deploy a
+        // no-op (marked skipped) unless THIS service's files changed.
+        githubPush()
+    }
+
+    environment {
+        SERVICE_NAME = 'auth-service'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            when {
+                anyOf {
+                    changeset pattern: "services/auth-service/**", comparator: 'GLOB'
+                    triggeredBy 'UserIdCause' // manual "Build Now" always runs
+                }
+            }
+            steps {
+                bat "scripts\\build-all.bat auth-service"
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf {
+                    changeset pattern: "services/auth-service/**", comparator: 'GLOB'
+                    triggeredBy 'UserIdCause'
+                }
+            }
+            steps {
+                bat "scripts\\deploy-all.bat auth-service"
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'logs/**', allowEmptyArchive: true
+        }
+        failure {
+            echo 'auth-service: build or deploy failed - check the archived logs.'
+        }
+        success {
+            echo 'auth-service: build + deploy completed successfully.'
+        }
+    }
+}

@@ -1,0 +1,57 @@
+pipeline {
+    agent { label 'windows-local' }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    parameters {
+        string(
+            name: 'SERVICE_NAME',
+            defaultValue: '',
+            description: 'Leave blank to build+deploy EVERYTHING. Or enter one name (e.g. consent-service, frontend, pii-detection) to build+deploy just that one. Webhook-triggered runs always use the default (blank = full build).'
+        )
+    }
+
+    triggers {
+        // Fires when GitHub's webhook hits Jenkins. Requires the
+        // "GitHub" plugin and "GitHub hook trigger for GITScm polling"
+        // checked on the job (see README). Webhook runs use whatever
+        // SERVICE_NAME was left as default - i.e. full build - since
+        // GitHub can't pass parameters through the plain push hook.
+        githubPush()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                bat "scripts\\build-all.bat %SERVICE_NAME%"
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                bat "scripts\\deploy-all.bat %SERVICE_NAME%"
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'logs/**', allowEmptyArchive: true, fingerprint: false
+        }
+        failure {
+            echo 'Build or deploy failed - check the archived logs for the failing service.'
+        }
+        success {
+            echo 'Build + deploy completed successfully.'
+        }
+    }
+}
