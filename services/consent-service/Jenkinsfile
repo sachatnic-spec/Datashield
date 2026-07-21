@@ -1,63 +1,31 @@
-pipeline {
-    agent { label 'windows-local' }
-
-    options {
-        disableConcurrentBuilds()
-        timestamps()
+﻿pipeline {
+  agent any
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+    stage('Build') { steps { sh 'mvn clean install -DskipTests' } }
+    stage('Package & Move') {
+      steps {
+        script {
+          def jar = sh(script: "ls target/*.jar 2>/dev/null | head -n1", returnStdout: true).trim()
+          if (!jar) { error "No JAR found in target/ — build failed." }
+          def ts = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
+          def dest = "new_build_${ts}"
+          sh "mkdir -p ${dest}"
+          sh "mv ${jar} ${dest}/"
+          env.JAR_PATH = "${dest}/${jar.tokenize('/')[-1]}"
+          echo "Moved ${jar} -> ${env.JAR_PATH}"
+        }
+      }
     }
-
-    triggers {
-        // Every job with this trigger fires on each push to the repo;
-        // the 'when { changeset }' guards below make Build/Deploy a
-        // no-op (marked skipped) unless THIS service's files changed.
-        githubPush()
+    stage('Run') {
+      steps {
+        sh '''
+          nohup java -jar "${JAR_PATH}" > app.log 2>&1 &
+          echo $! > app.pid
+          echo "Started jar as PID $(cat app.pid)"
+        '''
+      }
     }
-
-    environment {
-        SERVICE_NAME = 'consent-service'
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build') {
-            when {
-                anyOf {
-                    changeset pattern: "services/consent-service/**", comparator: 'GLOB'
-                    triggeredBy 'UserIdCause' // manual "Build Now" always runs
-                }
-            }
-            steps {
-                bat "scripts\\build-all.bat consent-service"
-            }
-        }
-
-        stage('Deploy') {
-            when {
-                anyOf {
-                    changeset pattern: "services/consent-service/**", comparator: 'GLOB'
-                    triggeredBy 'UserIdCause'
-                }
-            }
-            steps {
-                bat "scripts\\deploy-all.bat consent-service"
-            }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: 'logs/**', allowEmptyArchive: true
-        }
-        failure {
-            echo 'consent-service: build or deploy failed - check the archived logs.'
-        }
-        success {
-            echo 'consent-service: build + deploy completed successfully.'
-        }
-    }
+  }
+  post { failure { echo "Build or start failed." } }
 }

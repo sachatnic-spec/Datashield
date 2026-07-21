@@ -1,0 +1,164 @@
+{
+  "auth-service": [
+    "maven",
+    8001,
+    "/v1/auth/health",
+    true
+  ],
+  "consent-service": [
+    "maven",
+    8002,
+    "/actuator/health",
+    true
+  ],
+  "rights-service": [
+    "maven",
+    8003,
+    "/actuator/health",
+    true
+  ],
+  "breach-service": [
+    "maven",
+    8004,
+    "/actuator/health",
+    true
+  ],
+  "notification-service": [
+    "maven",
+    8005,
+    "/actuator/health",
+    true
+  ],
+  "audit-service": [
+    "maven",
+    8006,
+    "/actuator/health",
+    true
+  ],
+  "tenant-service": [
+    "maven",
+    8007,
+    "/actuator/health",
+    true
+  ],
+  "vendor-service": [
+    "maven",
+    8008,
+    "/actuator/health",
+    false
+  ],
+  "policy-service": [
+    "maven",
+    8009,
+    "/actuator/health",
+    false
+  ],
+  "retention-service": [
+    "maven",
+    8010,
+    "/actuator/health",
+    false
+  ],
+  "grievance-service": [
+    "maven",
+    8011,
+    "/actuator/health",
+    false
+  ],
+  "discovery-service": [
+    "maven",
+    8012,
+    "/actuator/health",
+    false
+  ],
+  "classification-service": [
+    "maven",
+    8013,
+    "/actuator/health",
+    false
+  ],
+  "lineage-service": [
+    "maven",
+    8014,
+    "/actuator/health",
+    false
+  ],
+  "workflow-service": [
+    "maven",
+    8015,
+    "/actuator/health",
+    false
+  ],
+  "analytics-service": [
+    "maven",
+    8016,
+    "/actuator/health",
+    false
+  ],
+  "report-service": [
+    "maven",
+    8017,
+    "/actuator/health",
+    false
+  ],
+  "ai-analysis-service": [
+    "python",
+    8018,
+    "/health",
+    null
+  ],
+  "pii-detection-service": [
+    "python",
+    8019,
+    "/health",
+    null
+  ],
+  "risk-scoring-service": [
+    "python",
+    8020,
+    "/health",
+    null
+  ],
+  "anomaly-service": [
+    "python",
+    8021,
+    "/health",
+    null
+  ],
+  "connector-service": [
+    "maven",
+    8022,
+    "/health",
+    true
+  ],
+  "webhook-service": [
+    "maven",
+    8023,
+    "/health",
+    true
+  ],
+  "siem-service": [
+    "maven",
+    8024,
+    "/health",
+    false
+  ],
+  "dpbi-service": [
+    "maven",
+    8025,
+    "/health",
+    true
+  ],
+  "config-service": [
+    "maven",
+    8026,
+    "/actuator/health",
+    false
+  ],
+  "search-service": [
+    "maven",
+    8027,
+    "/actuator/health",
+    false
+  ]
+}

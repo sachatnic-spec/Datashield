@@ -1,66 +1,31 @@
-pipeline {
-    agent { label 'windows-local' }
-
-    options {
-        disableConcurrentBuilds()
-        timestamps()
+﻿pipeline {
+  agent any
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+    stage('Build') { steps { sh 'go mod download || true'; sh 'go build -o app .' } }
+    stage('Package & Move') {
+      steps {
+        script {
+          def bin = sh(script: "test -f app && echo app || true", returnStdout: true).trim()
+          if (!bin) { error "Build output 'app' not found." }
+          def ts = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
+          def dest = "new_build_${ts}"
+          sh "mkdir -p ${dest}"
+          sh "mv app ${dest}/"
+          env.BIN_PATH = "${dest}/app"
+          echo "Moved app -> ${env.BIN_PATH}"
+        }
+      }
     }
-
-    triggers {
-        // Every job with this trigger fires on each push to the repo;
-        // the 'when { changeset }' guards below make Build/Deploy a
-        // no-op (marked skipped) unless THIS service's files changed.
-        githubPush()
+    stage('Run') {
+      steps {
+        sh '''
+          nohup "${BIN_PATH}" > app.log 2>&1 &
+          echo $! > app.pid
+          echo "Started app PID $(cat app.pid)"
+        '''
+      }
     }
-
-    environment {
-        SERVICE_NAME = 'frontend'
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build') {
-            when {
-                anyOf {
-                    changeset pattern: "frontend/**", comparator: 'GLOB'
-                    triggeredBy 'UserIdCause' // manual "Build Now" always runs
-                }
-            }
-            steps {
-                bat "scripts\\build-all.bat frontend"
-            }
-        }
-
-        stage('Deploy') {
-            // Frontend has no backend port to deploy - it's just a build.
-            // Remove this stage or replace with your static-file copy /
-            // ng-serve restart step if you deploy the frontend locally too.
-            when {
-                anyOf {
-                    changeset pattern: "frontend/**", comparator: 'GLOB'
-                    triggeredBy 'UserIdCause'
-                }
-            }
-            steps {
-                echo 'Frontend built - add your own deploy step here (e.g. copy dist/ to a static host, or restart ng serve).'
-            }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: 'logs/**', allowEmptyArchive: true
-        }
-        failure {
-            echo 'frontend: build or deploy failed - check the archived logs.'
-        }
-        success {
-            echo 'frontend: build + deploy completed successfully.'
-        }
-    }
+  }
+  post { failure { echo "Build or start failed." } }
 }

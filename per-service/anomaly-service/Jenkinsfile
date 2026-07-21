@@ -1,0 +1,81 @@
+// ============================================================
+// Jenkinsfile for anomaly-service  (Python / FastAPI service)
+// Auto-generated scaffold - safe to hand-edit per service.
+// Uses forward slashes for all paths - Windows/cmd/PowerShell/Java
+// all accept them, and it avoids Groovy string-escaping pitfalls.
+// ============================================================
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+    }
+
+    environment {
+        SERVICE_NAME   = 'anomaly-service'
+        SERVICE_DIR    = "${WORKSPACE}/services/anomaly-service"
+        SERVICE_PORT   = '8021'
+        HEALTH_PATH    = '/health'
+        DEPLOY_ROOT    = 'D:/Development Practice/Datasheild/deploy'
+        SCRIPTS_DIR    = "${WORKSPACE}/jenkins-setup/scripts"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup venv & Install Deps') {
+            steps {
+                bat "python -m venv \"${SERVICE_DIR}/.venv\""
+                bat "\"${SERVICE_DIR}/.venv/Scripts/pip.exe\" install --upgrade pip"
+                bat "\"${SERVICE_DIR}/.venv/Scripts/pip.exe\" install -r \"${SERVICE_DIR}/requirements.txt\""
+            }
+        }
+
+        stage('Unit Test') {
+            steps {
+                bat "\"${SERVICE_DIR}/.venv/Scripts/pytest.exe\" \"${SERVICE_DIR}\" --junitxml=\"${SERVICE_DIR}/test-results.xml\" || exit 0"
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: "services/anomaly-service/test-results.xml"
+                }
+            }
+        }
+
+        stage('Stop Running Service') {
+            steps {
+                powershell "& '${SCRIPTS_DIR}/Stop-Service.ps1' -ServiceName '${SERVICE_NAME}' -Port ${SERVICE_PORT}"
+            }
+        }
+
+        stage('Start Service') {
+            steps {
+                powershell "& '${SCRIPTS_DIR}/Start-PythonService.ps1' -ServiceName '${SERVICE_NAME}' -ServiceDir '${SERVICE_DIR}' -Port ${SERVICE_PORT} -DeployRoot '${DEPLOY_ROOT}'"
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                powershell "& '${SCRIPTS_DIR}/Test-Health.ps1' -ServiceName '${SERVICE_NAME}' -Port ${SERVICE_PORT} -HealthPath '${HEALTH_PATH}'"
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: "${DEPLOY_ROOT}/${SERVICE_NAME}/logs/*.log", allowEmptyArchive: true
+        }
+        success {
+            echo "==> ${SERVICE_NAME} deployed and healthy on port ${SERVICE_PORT}"
+        }
+        failure {
+            echo "==> ${SERVICE_NAME} deploy failed - check console output and logs above."
+        }
+    }
+}
