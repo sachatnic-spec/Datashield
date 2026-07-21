@@ -11,24 +11,17 @@ node {
   
   stage("Package & Move") {
     dir('services\\vendor-service') {
-      script {
-        def jar = bat(script: "dir /b target\\*.jar 2>nul | findstr /v sources | findstr /v javadoc | findstr /v original", returnStdout: true).trim()
-        if (!jar) {
-          error "No JAR found in target\\ - build failed"
-        }
-        def ts = bat(script: "@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
-        def dest = "new_build_" + ts
-        bat "if not exist " + dest + " mkdir " + dest
-        bat "move target\\" + jar + " " + dest + "\\\\"
-        env.JAR_PATH = dest + "\\" + jar
-        echo "Moved " + jar + " -> " + env.JAR_PATH
-      }
+      def ts = bat(script: "@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
+      def dest = "new_build_" + ts
+      bat "if not exist " + dest + " mkdir " + dest
+      bat "move target\\*-MVP.jar " + dest + "\\ || move target\\*.jar " + dest
+      echo "Moved JAR to " + dest
     }
   }
   
   stage("Run") {
     dir('services\\vendor-service') {
-      bat "start /B java -jar " + env.JAR_PATH
+      bat "start /B java -jar new_build_*\\*.jar"
       echo "Started jar"
     }
   }
