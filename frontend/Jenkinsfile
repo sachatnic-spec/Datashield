@@ -4,29 +4,28 @@ node {
   }
   
   stage('Build') {
-    sh 'go mod download || true'
-    sh 'go build -o app .'
+    bat 'go mod download || exit /b 0'
+    bat 'go build -o app.exe .'
   }
   
   stage('Package & Move') {
     script {
-      if (!fileExists('app')) {
-        error 'Build output app not found'
+      if (!fileExists('app.exe')) {
+        error 'Build output app.exe not found'
       }
-      def ts = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
+      def ts = bat(script: '@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%', returnStdout: true).trim()
       def dest = "new_build_${ts}"
-      sh "mkdir -p ${dest}"
-      sh "mv app ${dest}/"
-      env.BIN_PATH = "${dest}/app"
-      echo "Moved app -> ${env.BIN_PATH}"
+      bat "if not exist ${dest} mkdir ${dest}"
+      bat "move app.exe ${dest}\\"
+      env.BIN_PATH = "${dest}\\app.exe"
+      echo "Moved app.exe -> ${env.BIN_PATH}"
     }
   }
   
   stage('Run') {
-    sh '''
-      nohup "${BIN_PATH}" > app.log 2>&1 &
-      echo $! > app.pid
-      echo "Started app PID $(cat app.pid)"
+    bat '''
+      start /B "${BIN_PATH}" > app.log 2>&1
+      echo Started app
     '''
   }
 }
