@@ -1,31 +1,32 @@
-﻿pipeline {
-  agent any
-  stages {
-    stage('Checkout') { steps { checkout scm } }
-    stage('Build') { steps { sh 'go mod download || true'; sh 'go build -o app .' } }
-    stage('Package & Move') {
-      steps {
-        script {
-          def bin = sh(script: "test -f app && echo app || true", returnStdout: true).trim()
-          if (!bin) { error "Build output 'app' not found." }
-          def ts = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
-          def dest = "new_build_${ts}"
-          sh "mkdir -p ${dest}"
-          sh "mv app ${dest}/"
-          env.BIN_PATH = "${dest}/app"
-          echo "Moved app -> ${env.BIN_PATH}"
-        }
+﻿node('master') {
+  stage('Checkout') {
+    checkout scm
+  }
+  
+  stage('Build') {
+    sh 'go mod download || true'
+    sh 'go build -o app .'
+  }
+  
+  stage('Package & Move') {
+    script {
+      if (!fileExists('app')) {
+        error 'Build output app not found'
       }
-    }
-    stage('Run') {
-      steps {
-        sh '''
-          nohup "${BIN_PATH}" > app.log 2>&1 &
-          echo $! > app.pid
-          echo "Started app PID $(cat app.pid)"
-        '''
-      }
+      def ts = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
+      def dest = "new_build_${ts}"
+      sh "mkdir -p ${dest}"
+      sh "mv app ${dest}/"
+      env.BIN_PATH = "${dest}/app"
+      echo "Moved app -> ${env.BIN_PATH}"
     }
   }
-  post { failure { echo "Build or start failed." } }
+  
+  stage('Run') {
+    sh '''
+      nohup "${BIN_PATH}" > app.log 2>&1 &
+      echo $! > app.pid
+      echo "Started app PID $(cat app.pid)"
+    '''
+  }
 }
