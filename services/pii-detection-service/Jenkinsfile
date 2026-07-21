@@ -1,37 +1,35 @@
 node {
-  stage('Checkout') {
+  stage("Checkout") {
     checkout scm
   }
   
-  stage('Build') {
+  stage("Build") {
     dir('services\\pii-detection-service') {
-      bat 'mvn clean install -DskipTests'
+      bat "mvn clean install -DskipTests"
     }
   }
   
-  stage('Package & Move') {
+  stage("Package & Move") {
     dir('services\\pii-detection-service') {
       script {
-        def jar = bat(script: 'dir /b target\\*.jar 2>nul | findstr /v sources | findstr /v javadoc | findstr /v original', returnStdout: true).trim()
+        def jar = bat(script: "dir /b target\\*.jar 2>nul | findstr /v sources | findstr /v javadoc | findstr /v original", returnStdout: true).trim()
         if (!jar) {
-          error 'No JAR found in target\\\\ — build failed'
+          error "No JAR found in target\\ - build failed"
         }
-        def ts = bat(script: '@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%', returnStdout: true).trim()
-        def dest = "new_build_\"
-        bat "if not exist \ mkdir \"
-        bat "move target\\\\\ \\\\\"
-        env.JAR_PATH = "\\\\\\"
-        echo "Moved \ -> \"
+        def ts = bat(script: "@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
+        def dest = "new_build_" + ts
+        bat "if not exist " + dest + " mkdir " + dest
+        bat "move target\\" + jar + " " + dest + "\\\\"
+        env.JAR_PATH = dest + "\\" + jar
+        echo "Moved " + jar + " -> " + env.JAR_PATH
       }
     }
   }
   
-  stage('Run') {
+  stage("Run") {
     dir('services\\pii-detection-service') {
-      bat '''
-        start /B java -jar "\" > app.log 2>&1
-        echo Started jar
-      '''
+      bat "start /B java -jar " + env.JAR_PATH
+      echo "Started jar"
     }
   }
 }
