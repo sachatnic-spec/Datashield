@@ -5,24 +5,39 @@ node {
   
   stage("Build") {
     dir('services\\breach-service') {
-      bat "mvn clean install -DskipTests"
+      sh "mvn clean install -DskipTests"
     }
   }
   
   stage("Package & Move") {
     dir('services\\breach-service') {
-      def ts = bat(script: "@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
-      def dest = "new_build_" + ts
-      bat "if not exist " + dest + " mkdir " + dest
-      bat "move target\\*-MVP.jar " + dest + "\\ || move target\\*.jar " + dest
-      echo "Moved JAR to " + dest
+      script {
+        def ts = isUnix() ? 
+          sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim() : 
+          bat(script: "@echo %date:~-10,2%%date:~-7,2%%date:~-4,4%%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
+        def dest = "new_build_" + ts
+        if (isUnix()) {
+          sh "mkdir -p " + dest
+          sh "mv target/*-MVP.jar " + dest + "/ || mv target/*.jar " + dest + "/"
+        } else {
+          bat "if not exist " + dest + " mkdir " + dest
+          bat "move target\\*-MVP.jar " + dest + "\\ || move target\\*.jar " + dest
+        }
+        echo "Moved JAR to " + dest
+      }
     }
   }
   
   stage("Run") {
     dir('services\\breach-service') {
-      bat "start /B java -jar new_build_*\\*.jar"
-      echo "Started jar"
+      script {
+        if (isUnix()) {
+          sh "nohup java -jar new_build_*/*.jar > app.log 2>&1 &"
+        } else {
+          bat "start /B java -jar new_build_*\\*.jar"
+        }
+        echo "Started jar"
+      }
     }
   }
 }
