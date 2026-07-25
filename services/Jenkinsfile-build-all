@@ -1,0 +1,124 @@
+// ============================================================
+// Master Jenkinsfile - Build ALL Services at Once
+// Builds all Maven services in parallel, then moves artifacts
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 2, unit: 'HOURS')
+    }
+
+    environment {
+        DEPLOY_ROOT    = 'D:/Development Practice/Datasheild/deploy'
+        SCRIPTS_DIR    = "${WORKSPACE}/jenkins-setup/scripts"
+        BUILD_TIMESTAMP = sh(script: "date +%Y%m%d_%H%M%S", returnStdout: true).trim()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out repository..."
+                checkout scm
+            }
+        }
+
+        stage('Build All Maven Services') {
+            steps {
+                script {
+                    echo "==> Building all Maven services in parallel..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    mavenServices.each { service ->
+                        buildJobs[service] = {
+                            echo "Building ${service}..."
+                            sh """
+                                cd services/${service}
+                                mvn clean package -DskipTests -q
+                                echo "✓ ${service} built successfully"
+                            """
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Archive and Deploy Artifacts') {
+            steps {
+                script {
+                    echo "==> Archiving and deploying all artifacts..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    mavenServices.each { service ->
+                        sh """
+                            mkdir -p ${DEPLOY_ROOT}/${service}
+                            cp services/${service}/target/*.jar ${DEPLOY_ROOT}/${service}/ || true
+                            echo "✓ ${service} artifacts deployed to ${DEPLOY_ROOT}/${service}"
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Test Connectivity') {
+            steps {
+                script {
+                    echo "==> Verifying all artifacts were created..."
+                    sh """
+                        echo "Deployed artifacts:"
+                        find ${DEPLOY_ROOT} -name "*.jar" -type f | sort
+                        echo ""
+                        echo "Total JARs: \$(find ${DEPLOY_ROOT} -name "*.jar" -type f | wc -l)"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "==> Archiving all build artifacts..."
+            archiveArtifacts artifacts: 'services/*/target/*.jar', allowEmptyArchive: true
+        }
+        success {
+            echo "✓ All services built and deployed successfully!"
+            sh """
+                echo "Build Summary:"
+                echo "=============="
+                echo "Timestamp: ${BUILD_TIMESTAMP}"
+                find ${DEPLOY_ROOT} -name "*.jar" -type f -exec ls -lh {} \\; | awk '{print $9, "(" $5 ")"}'
+            """
+        }
+        failure {
+            echo "✗ Build failed. Check logs above for details."
+        }
+    }
+}

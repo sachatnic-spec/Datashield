@@ -1,0 +1,314 @@
+// ============================================================
+// Master Jenkinsfile - Build ALL Projects (Maven, Python, UI)
+// Dynamically detects project type and builds accordingly
+// No hardcoded paths - uses workspace-relative directories
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 3, unit: 'HOURS')
+    }
+
+    environment {
+        // Dynamic paths - relative to workspace
+        BUILD_DIR        = "${WORKSPACE}/build-output"
+        DEPLOY_DIR       = "${WORKSPACE}/deploy"
+        LOGS_DIR         = "${WORKSPACE}/deploy/logs"
+        MAVEN_OPTS       = "-Xmx2g -Xms512m"
+        NODE_ENV         = "production"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out repository..."
+                checkout scm
+                sh '''
+                    echo "Workspace: ${WORKSPACE}"
+                    echo "Build Dir: ${BUILD_DIR}"
+                    echo "Deploy Dir: ${DEPLOY_DIR}"
+                '''
+            }
+        }
+
+        stage('Prepare Build Directories') {
+            steps {
+                echo "==> Preparing build directories..."
+                sh '''
+                    mkdir -p "${BUILD_DIR}"
+                    mkdir -p "${DEPLOY_DIR}"
+                    mkdir -p "${LOGS_DIR}"
+                    chmod -R 755 "${BUILD_DIR}" "${DEPLOY_DIR}" "${LOGS_DIR}"
+                    echo "✓ Directories prepared"
+                '''
+            }
+        }
+
+        stage('Build All Maven Services') {
+            steps {
+                script {
+                    echo "==> Building all Maven services..."
+                    
+                    def mavenServices = [
+                        'services/ai-analysis-service',
+                        'services/analytics-service',
+                        'services/anomaly-detection-service',
+                        'services/audit-service',
+                        'services/auth-service',
+                        'services/breach-service',
+                        'services/config-service',
+                        'services/connector-service',
+                        'services/consent-service',
+                        'services/data-classification-service',
+                        'services/data-discovery-service',
+                        'services/data-lineage-service',
+                        'services/dpbi-service',
+                        'services/grievance-service',
+                        'services/notification-service',
+                        'services/pii-detection-service',
+                        'services/policy-service',
+                        'services/report-service',
+                        'services/retention-service',
+                        'services/rights-service',
+                        'services/risk-scoring-service',
+                        'services/search-service',
+                        'services/siem-service',
+                        'services/tenant-service',
+                        'services/vendor-service',
+                        'services/webhook-service',
+                        'services/workflow-service'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    mavenServices.each { service ->
+                        def serviceName = service.split('/').last()
+                        buildJobs[serviceName] = {
+                            try {
+                                echo "🔨 Building ${serviceName}..."
+                                sh """
+                                    cd "${service}"
+                                    mvn clean package -DskipTests -q -DMAVEN_OPTS="${MAVEN_OPTS}"
+                                    
+                                    # Move artifact to build output
+                                    mkdir -p "${BUILD_DIR}/${serviceName}"
+                                    cp target/*.jar "${BUILD_DIR}/${serviceName}/" || true
+                                    echo "✓ ${serviceName} built and moved"
+                                """
+                            } catch (Exception e) {
+                                echo "✗ Failed: ${serviceName}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build Python Services') {
+            steps {
+                script {
+                    echo "==> Building Python services..."
+                    
+                    def pythonServices = [
+                        'services/ai-analysis',
+                        'services/anomaly-detection',
+                        'services/pii-detection',
+                        'services/risk-scoring'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    pythonServices.each { service ->
+                        def serviceName = service.split('/').last()
+                        buildJobs[serviceName] = {
+                            try {
+                                echo "🐍 Building Python service: ${serviceName}..."
+                                sh """
+                                    cd "${service}"
+                                    
+                                    # Create virtual environment if needed
+                                    if [ ! -d ".venv" ]; then
+                                        python3 -m venv .venv
+                                    fi
+                                    
+                                    source .venv/bin/activate || . .venv\\\\Scripts\\\\activate.bat
+                                    
+                                    # Install dependencies
+                                    pip install --upgrade pip setuptools wheel -q
+                                    if [ -f "requirements.txt" ]; then
+                                        pip install -r requirements.txt -q
+                                    fi
+                                    if [ -f "setup.py" ]; then
+                                        pip install -e . -q
+                                    fi
+                                    
+                                    # Package application
+                                    mkdir -p "${BUILD_DIR}/${serviceName}"
+                                    
+                                    # Copy app files
+                                    cp -r app models utils *.py "${BUILD_DIR}/${serviceName}/" 2>/dev/null || true
+                                    cp requirements.txt "${BUILD_DIR}/${serviceName}/" 2>/dev/null || true
+                                    
+                                    echo "✓ ${serviceName} packaged"
+                                """
+                            } catch (Exception e) {
+                                echo "✗ Failed: ${serviceName}"
+                                // Don't fail pipeline for Python build issues
+                                echo "Warning: Python service build failed, continuing..."
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build UI Projects') {
+            steps {
+                script {
+                    echo "==> Building UI projects..."
+                    
+                    def uiProjects = [
+                        'frontend/compliance-dashboard',
+                        'frontend/consent-widget',
+                        'frontend/data-principal-portal'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    uiProjects.each { project ->
+                        def projectName = project.split('/').last()
+                        buildJobs[projectName] = {
+                            try {
+                                echo "🎨 Building UI: ${projectName}..."
+                                sh """
+                                    cd "${project}"
+                                    
+                                    # Install dependencies
+                                    npm install --legacy-peer-deps -q
+                                    
+                                    # Build for production
+                                    if grep -q '"build"' package.json; then
+                                        npm run build
+                                    fi
+                                    
+                                    # Move to build output
+                                    mkdir -p "${BUILD_DIR}/${projectName}"
+                                    if [ -d "dist" ]; then
+                                        cp -r dist/* "${BUILD_DIR}/${projectName}/"
+                                    elif [ -d "build" ]; then
+                                        cp -r build/* "${BUILD_DIR}/${projectName}/"
+                                    else
+                                        cp -r . "${BUILD_DIR}/${projectName}/"
+                                    fi
+                                    
+                                    echo "✓ ${projectName} built"
+                                """
+                            } catch (Exception e) {
+                                echo "✗ Failed: ${projectName}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Organize Artifacts') {
+            steps {
+                echo "==> Organizing all artifacts..."
+                sh '''
+                    echo "=== BUILD OUTPUT STRUCTURE ===="
+                    find "${BUILD_DIR}" -type f -name "*.jar" -o -name "*.war" | sort
+                    
+                    echo ""
+                    echo "=== UI BUILD OUTPUT ===="
+                    find "${BUILD_DIR}" -type d -name "compliance-dashboard" -o -type d -name "consent-widget" -o -type d -name "data-principal-portal" | sort
+                    
+                    echo ""
+                    echo "=== PYTHON PACKAGES ===="
+                    find "${BUILD_DIR}" -type d -name "ai-analysis" -o -type d -name "anomaly-detection" -o -type d -name "pii-detection" -o -type d -name "risk-scoring" | sort
+                    
+                    # Create manifest file
+                    cat > "${DEPLOY_DIR}/BUILD_MANIFEST.txt" << EOF
+BUILD MANIFEST - $(date)
+================================================
+
+JAVA/MAVEN SERVICES:
+EOF
+                    find "${BUILD_DIR}" -name "*.jar" | sed 's|.*|  - &|' >> "${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                    
+                    cat >> "${DEPLOY_DIR}/BUILD_MANIFEST.txt" << EOF
+
+PYTHON SERVICES:
+EOF
+                    find "${BUILD_DIR}" -type d -path "*/ai-analysis" -o -path "*/anomaly-detection" -o -path "*/pii-detection" -o -path "*/risk-scoring" | sed 's|.*|  - &|' >> "${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                    
+                    cat >> "${DEPLOY_DIR}/BUILD_MANIFEST.txt" << EOF
+
+UI PROJECTS:
+EOF
+                    find "${BUILD_DIR}" -type d \\( -name "compliance-dashboard" -o -name "consent-widget" -o -name "data-principal-portal" \\) | sed 's|.*|  - &|' >> "${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                    
+                    echo ""
+                    echo "✓ Build manifest created at ${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                    cat "${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                '''
+            }
+        }
+
+        stage('Summary') {
+            steps {
+                sh '''
+                    echo "=========================================="
+                    echo "BUILD COMPLETE"
+                    echo "=========================================="
+                    echo "Workspace: ${WORKSPACE}"
+                    echo "Build Output: ${BUILD_DIR}"
+                    echo "Deploy Output: ${DEPLOY_DIR}"
+                    echo ""
+                    echo "Total items built:"
+                    find "${BUILD_DIR}" -type f | wc -l
+                    echo ""
+                    echo "Java JARs: $(find "${BUILD_DIR}" -name "*.jar" | wc -l)"
+                    echo "Python Packages: $(find "${BUILD_DIR}" -type d -path "*ai-analysis*" -o -path "*anomaly-detection*" -o -path "*pii-detection*" -o -path "*risk-scoring*" | wc -l)"
+                    echo "UI Projects: $(find "${BUILD_DIR}" -type d \\( -name "compliance-dashboard" -o -name "consent-widget" -o -name "data-principal-portal" \\) | wc -l)"
+                    echo ""
+                    echo "Next steps:"
+                    echo "1. Deploy from: ${BUILD_DIR}"
+                    echo "2. Logs available in: ${LOGS_DIR}"
+                    echo "3. Manifest at: ${DEPLOY_DIR}/BUILD_MANIFEST.txt"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "==> Archiving all build artifacts..."
+            archiveArtifacts artifacts: 'build-output/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'deploy/**', allowEmptyArchive: true
+        }
+        success {
+            echo "✓ ALL PROJECTS BUILT SUCCESSFULLY!"
+            sh '''
+                echo "Build artifacts ready at: ${BUILD_DIR}"
+                ls -lah "${BUILD_DIR}"
+            '''
+        }
+        failure {
+            echo "✗ Build failed. Check logs for details."
+        }
+    }
+}

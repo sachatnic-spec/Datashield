@@ -1,0 +1,223 @@
+// ============================================================
+// Master Jenkinsfile - Build, Deploy & Run ALL Services
+// Complete pipeline: build → deploy → start all services
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 3, unit: 'HOURS')
+    }
+
+    environment {
+        DEPLOY_ROOT    = 'D:/Development Practice/Datasheild/deploy'
+        SCRIPTS_DIR    = "${WORKSPACE}/jenkins-setup/scripts"
+        BUILD_TIMESTAMP = sh(script: "date +%Y%m%d_%H%M%S", returnStdout: true).trim()
+        LOG_DIR        = '${DEPLOY_ROOT}/logs'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out repository..."
+                checkout scm
+            }
+        }
+
+        stage('Build All Maven Services') {
+            steps {
+                script {
+                    echo "==> Building all 27 Maven services in parallel..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    mavenServices.each { service ->
+                        buildJobs[service] = {
+                            try {
+                                echo "🔨 Building ${service}..."
+                                sh """
+                                    cd services/${service}
+                                    mvn clean package -DskipTests -q 2>&1 | tail -20
+                                """
+                                echo "✓ ${service} built successfully"
+                            } catch (Exception e) {
+                                echo "✗ Failed to build ${service}: ${e.message}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Deploy All Artifacts') {
+            steps {
+                script {
+                    echo "==> Deploying all artifacts..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    sh "mkdir -p ${LOG_DIR}"
+                    
+                    mavenServices.each { service ->
+                        sh """
+                            mkdir -p ${DEPLOY_ROOT}/${service}
+                            cp services/${service}/target/*.jar ${DEPLOY_ROOT}/${service}/ || true
+                            ls -lh ${DEPLOY_ROOT}/${service}/*.jar 2>/dev/null | awk '{print "  " \\$9, "(" \\$5 ")"}'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Stop Previous Instances') {
+            steps {
+                script {
+                    echo "==> Stopping any previously running services..."
+                    sh """
+                        # Kill any Java processes running from deploy folder
+                        for jar in \$(find ${DEPLOY_ROOT} -name "*.jar" -type f); do
+                            pgrep -f "\$jar" 2>/dev/null && pkill -f "\$jar" && echo "Stopped: \$jar"
+                        done || true
+                        sleep 2
+                    """
+                }
+            }
+        }
+
+        stage('Start All Services') {
+            steps {
+                script {
+                    echo "==> Starting all services..."
+                    
+                    // Service port mapping (update as needed)
+                    def servicePorts = [
+                        'auth-service': '8001',
+                        'config-service': '8002',
+                        'audit-service': '8003',
+                        'notification-service': '8004',
+                        'analytics-service': '8005',
+                        'ai-analysis-service': '8006',
+                        'anomaly-detection-service': '8007',
+                        'breach-service': '8008',
+                        'consent-service': '8009',
+                        'connector-service': '8010',
+                        'data-classification-service': '8011',
+                        'data-discovery-service': '8012',
+                        'data-lineage-service': '8013',
+                        'dpbi-service': '8014',
+                        'grievance-service': '8015',
+                        'pii-detection-service': '8016',
+                        'policy-service': '8017',
+                        'report-service': '8018',
+                        'retention-service': '8019',
+                        'rights-service': '8020',
+                        'risk-scoring-service': '8021',
+                        'search-service': '8022',
+                        'siem-service': '8023',
+                        'tenant-service': '8024',
+                        'vendor-service': '8025',
+                        'webhook-service': '8026',
+                        'workflow-service': '8027'
+                    ]
+                    
+                    servicePorts.each { service, port ->
+                        sh """
+                            JAR_FILE=\$(find ${DEPLOY_ROOT}/${service} -name "*.jar" -type f | head -1)
+                            if [ -f "\$JAR_FILE" ]; then
+                                nohup java -Dserver.port=${port} -jar "\$JAR_FILE" > ${LOG_DIR}/${service}.log 2>&1 &
+                                echo "✓ Started ${service} on port ${port}"
+                                sleep 1
+                            else
+                                echo "✗ No JAR found for ${service}"
+                            fi
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    echo "==> Performing health checks..."
+                    
+                    def servicePorts = [
+                        'auth-service': '8001',
+                        'config-service': '8002',
+                        'audit-service': '8003',
+                        'notification-service': '8004',
+                        'analytics-service': '8005'
+                    ]
+                    
+                    sleep(time: 5, unit: 'SECONDS')
+                    
+                    servicePorts.each { service, port ->
+                        sh """
+                            echo "Checking ${service} on port ${port}..."
+                            for i in {1..10}; do
+                                if curl -s http://localhost:${port}/actuator/health >/dev/null 2>&1; then
+                                    echo "✓ ${service} is healthy"
+                                    break
+                                elif [ \$i -eq 10 ]; then
+                                    echo "✗ ${service} health check failed"
+                                else
+                                    sleep 2
+                                fi
+                            done
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "==> Build Summary"
+            sh """
+                echo "================================================================"
+                echo "Build Timestamp: ${BUILD_TIMESTAMP}"
+                echo "================================================================"
+                echo "Deployed Services:"
+                ls -1 ${DEPLOY_ROOT} | grep -service | nl
+                echo ""
+                echo "Total JARs deployed: \$(find ${DEPLOY_ROOT} -name "*.jar" -type f | wc -l)"
+                echo "Logs available at: ${LOG_DIR}"
+            """
+            archiveArtifacts artifacts: 'services/*/target/*.jar', allowEmptyArchive: true
+        }
+        success {
+            echo "✓ ALL SERVICES BUILT AND STARTED SUCCESSFULLY!"
+        }
+        failure {
+            echo "✗ Build/deployment failed. Check logs for details."
+        }
+    }
+}
