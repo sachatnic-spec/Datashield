@@ -4,13 +4,13 @@ node {
   }
   
   stage("Build") {
-    dir('services\\analytics-service') {
+    dir('services/analytics-service') {
       sh "mvn clean install -DskipTests"
     }
   }
   
   stage("Package & Move") {
-    dir('services\\analytics-service') {
+    dir('services/analytics-service') {
       script {
         def ts = isUnix() ? 
           sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim() : 
@@ -21,7 +21,7 @@ node {
           sh "mv target/*-MVP.jar " + dest + "/ || mv target/*.jar " + dest + "/"
         } else {
           bat "if not exist " + dest + " mkdir " + dest
-          bat "move target\\*-MVP.jar " + dest + "\\ || move target\\*.jar " + dest
+          bat "move target/*-MVP.jar " + dest + "\\ || move target/*.jar " + dest
         }
         echo "Moved JAR to " + dest
       }
@@ -29,7 +29,7 @@ node {
   }
   
   stage("Run") {
-    dir('services\\analytics-service') {
+    dir('services/analytics-service') {
       script {
         if (isUnix()) {
           sh "nohup java -jar new_build_*/*.jar > app.log 2>&1 &"
