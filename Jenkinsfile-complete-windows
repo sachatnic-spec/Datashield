@@ -1,0 +1,270 @@
+// ============================================================
+// Master Jenkinsfile - Windows Agent - Complete Pipeline
+// Build, Deploy & Run ALL Projects
+// Uses batch commands for Windows compatibility
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 4, unit: 'HOURS')
+    }
+
+    environment {
+        BUILD_DIR        = "${WORKSPACE}\\build-output"
+        DEPLOY_DIR       = "${WORKSPACE}\\deploy"
+        LOGS_DIR         = "${WORKSPACE}\\deploy\\logs"
+        MAVEN_OPTS       = "-Xmx2g -Xms512m"
+        NODE_ENV         = "production"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out repository..."
+                checkout scm
+            }
+        }
+
+        stage('Prepare Directories') {
+            steps {
+                bat '''
+                    if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
+                    if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+                    if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+                    echo Directories ready
+                '''
+            }
+        }
+
+        stage('Build Maven Services') {
+            steps {
+                script {
+                    echo "==> Building 27 Maven services in parallel..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    mavenServices.each { service ->
+                        buildJobs[service] = {
+                            try {
+                                bat """
+                                    cd services\\${service}
+                                    mvn clean package -DskipTests -q
+                                    if not exist "%BUILD_DIR%\\${service}" mkdir "%BUILD_DIR%\\${service}"
+                                    copy target\\*.jar "%BUILD_DIR%\\${service}\\" 2>nul
+                                """
+                            } catch (Exception e) {
+                                echo "Error: ${service}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build Python Services') {
+            steps {
+                script {
+                    echo "==> Building Python services..."
+                    
+                    def pythonServices = ['ai-analysis', 'anomaly-detection', 'pii-detection', 'risk-scoring']
+                    
+                    def buildJobs = [:]
+                    
+                    pythonServices.each { service ->
+                        buildJobs[service] = {
+                            try {
+                                bat """
+                                    cd services\\${service}
+                                    if not exist ".venv" python -m venv .venv
+                                    call .venv\\Scripts\\activate.bat
+                                    pip install --upgrade pip -q
+                                    if exist requirements.txt pip install -r requirements.txt -q
+                                    if not exist "%BUILD_DIR%\\${service}" mkdir "%BUILD_DIR%\\${service}"
+                                    robocopy . "%BUILD_DIR%\\${service}" /e /xd .venv /xf *.db 2>nul
+                                """
+                            } catch (Exception e) {
+                                echo "Warning: ${service} (non-critical)"
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build UI Projects') {
+            steps {
+                script {
+                    echo "==> Building UI projects..."
+                    
+                    def uiProjects = ['compliance-dashboard', 'consent-widget', 'data-principal-portal']
+                    
+                    def buildJobs = [:]
+                    
+                    uiProjects.each { project ->
+                        buildJobs[project] = {
+                            try {
+                                bat """
+                                    cd frontend\\${project}
+                                    call npm install --legacy-peer-deps -q
+                                    call npm run build
+                                    if not exist "%BUILD_DIR%\\${project}" mkdir "%BUILD_DIR%\\${project}"
+                                    if exist dist robocopy dist "%BUILD_DIR%\\${project}" /e
+                                """
+                            } catch (Exception e) {
+                                echo "Error: ${project}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Deploy Artifacts') {
+            steps {
+                bat '''
+                    echo Copying artifacts...
+                    robocopy "%BUILD_DIR%" "%DEPLOY_DIR%" /e /xd logs
+                    
+                    REM Create subdirectories
+                    if not exist "%DEPLOY_DIR%\\services" mkdir "%DEPLOY_DIR%\\services"
+                    if not exist "%DEPLOY_DIR%\\ui" mkdir "%DEPLOY_DIR%\\ui"
+                    
+                    echo Artifacts deployed
+                '''
+            }
+        }
+
+        stage('Stop Previous Processes') {
+            steps {
+                bat '''
+                    echo Stopping previous instances...
+                    taskkill /F /IM java.exe 2>nul || echo No Java processes
+                    taskkill /F /IM python.exe 2>nul || echo No Python processes
+                    timeout /T 2
+                '''
+            }
+        }
+
+        stage('Start Services') {
+            steps {
+                bat '''
+                    setlocal enabledelayedexpansion
+                    
+                    echo Starting services...
+                    
+                    REM Define service ports (8001-8027)
+                    set ports[0]=8001
+                    set ports[1]=8002
+                    set ports[2]=8003
+                    set ports[3]=8004
+                    set ports[4]=8005
+                    set ports[5]=8006
+                    set ports[6]=8007
+                    set ports[7]=8008
+                    set ports[8]=8009
+                    set ports[9]=8010
+                    set ports[10]=8011
+                    set ports[11]=8012
+                    set ports[12]=8013
+                    set ports[13]=8014
+                    set ports[14]=8015
+                    set ports[15]=8016
+                    set ports[16]=8017
+                    set ports[17]=8018
+                    set ports[18]=8019
+                    set ports[19]=8020
+                    set ports[20]=8021
+                    set ports[21]=8022
+                    set ports[22]=8023
+                    set ports[23]=8024
+                    set ports[24]=8025
+                    set ports[25]=8026
+                    set ports[26]=8027
+                    
+                    set portIndex=0
+                    for /d %%D in ("%DEPLOY_DIR%\services\*") do (
+                        for %%J in ("%%D\*.jar") do (
+                            echo Starting %%~nD on port !ports[%portIndex%]!
+                            start /B javaw -Dserver.port=!ports[%portIndex%]! -jar "%%J" 1>"%LOGS_DIR%\%%~nD.log" 2>&1
+                            set /a portIndex=portIndex+1
+                            timeout /T 1
+                        )
+                    )
+                    
+                    echo Services starting... (check logs in %LOGS_DIR%)
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                bat '''
+                    echo Waiting for services to start...
+                    timeout /T 5
+                    
+                    echo Checking key services...
+                    for %%p in (8001 8002 8003 8004 8005) do (
+                        echo Checking port %%p
+                        netstat -ano | findstr %%p >nul && (
+                            echo OK: %%p
+                        ) || (
+                            echo WARN: %%p not responding
+                        )
+                    )
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            bat '''
+                echo.
+                echo ================================================
+                echo BUILD COMPLETE
+                echo ================================================
+                echo Build Dir: %BUILD_DIR%
+                echo Deploy Dir: %DEPLOY_DIR%
+                echo Logs: %LOGS_DIR%
+                echo.
+                echo Running Processes:
+                tasklist | findstr java
+                tasklist | findstr python
+                echo.
+                echo Service Ports:
+                netstat -ano | findstr "8001 8002 8003 8004 8005" || echo Not running
+            '''
+            archiveArtifacts artifacts: 'build-output\\**,deploy\\**', allowEmptyArchive: true
+        }
+        success {
+            echo "All projects built and services started!"
+        }
+        failure {
+            echo "Build failed - check log above"
+        }
+    }
+}

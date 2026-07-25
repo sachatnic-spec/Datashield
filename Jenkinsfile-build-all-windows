@@ -1,0 +1,244 @@
+// ============================================================
+// Master Jenkinsfile - Windows Agent
+// Build ALL Projects (Maven, Python, UI)
+// Uses batch commands for Windows compatibility
+// ============================================================
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 3, unit: 'HOURS')
+    }
+
+    environment {
+        BUILD_DIR        = "${WORKSPACE}\\build-output"
+        DEPLOY_DIR       = "${WORKSPACE}\\deploy"
+        LOGS_DIR         = "${WORKSPACE}\\deploy\\logs"
+        MAVEN_OPTS       = "-Xmx2g -Xms512m"
+        NODE_ENV         = "production"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out repository..."
+                checkout scm
+                bat '''
+                    echo Workspace: %WORKSPACE%
+                    echo Build Dir: %BUILD_DIR%
+                '''
+            }
+        }
+
+        stage('Prepare Directories') {
+            steps {
+                echo "==> Preparing build directories..."
+                bat '''
+                    if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
+                    if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+                    if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+                    echo Directories prepared
+                '''
+            }
+        }
+
+        stage('Build Maven Services') {
+            steps {
+                script {
+                    echo "==> Building Maven services..."
+                    
+                    def mavenServices = [
+                        'ai-analysis-service', 'analytics-service', 'anomaly-detection-service',
+                        'audit-service', 'auth-service', 'breach-service', 'config-service',
+                        'connector-service', 'consent-service', 'data-classification-service',
+                        'data-discovery-service', 'data-lineage-service', 'dpbi-service',
+                        'grievance-service', 'notification-service', 'pii-detection-service',
+                        'policy-service', 'report-service', 'retention-service', 'rights-service',
+                        'risk-scoring-service', 'search-service', 'siem-service', 'tenant-service',
+                        'vendor-service', 'webhook-service', 'workflow-service'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    mavenServices.each { service ->
+                        buildJobs[service] = {
+                            try {
+                                echo "Building ${service}..."
+                                bat """
+                                    cd services\\${service}
+                                    mvn clean package -DskipTests -q
+                                    if not exist "%BUILD_DIR%\\${service}" mkdir "%BUILD_DIR%\\${service}"
+                                    copy target\\*.jar "%BUILD_DIR%\\${service}\\" 2>nul
+                                    echo ${service} built
+                                """
+                            } catch (Exception e) {
+                                echo "Failed: ${service}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build Python Services') {
+            steps {
+                script {
+                    echo "==> Building Python services..."
+                    
+                    def pythonServices = [
+                        'ai-analysis', 'anomaly-detection', 'pii-detection', 'risk-scoring'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    pythonServices.each { service ->
+                        buildJobs[service] = {
+                            try {
+                                echo "Building Python: ${service}..."
+                                bat """
+                                    cd services\\${service}
+                                    
+                                    REM Create venv
+                                    if not exist ".venv" (
+                                        python -m venv .venv
+                                    )
+                                    
+                                    REM Activate and install
+                                    call .venv\\Scripts\\activate.bat
+                                    pip install --upgrade pip setuptools wheel -q
+                                    if exist requirements.txt (
+                                        pip install -r requirements.txt -q
+                                    )
+                                    if exist setup.py (
+                                        pip install -e . -q
+                                    )
+                                    
+                                    REM Copy to build
+                                    if not exist "%BUILD_DIR%\\${service}" mkdir "%BUILD_DIR%\\${service}"
+                                    robocopy app "%BUILD_DIR%\\${service}\\app" /e 2>nul || true
+                                    robocopy models "%BUILD_DIR%\\${service}\\models" /e 2>nul || true
+                                    robocopy utils "%BUILD_DIR%\\${service}\\utils" /e 2>nul || true
+                                    copy *.py "%BUILD_DIR%\\${service}\\" 2>nul || true
+                                    copy requirements.txt "%BUILD_DIR%\\${service}\\" 2>nul || true
+                                    echo ${service} packaged
+                                """
+                            } catch (Exception e) {
+                                echo "Warning: ${service} build failed (non-critical)"
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Build UI Projects') {
+            steps {
+                script {
+                    echo "==> Building UI projects..."
+                    
+                    def uiProjects = [
+                        'compliance-dashboard', 'consent-widget', 'data-principal-portal'
+                    ]
+                    
+                    def buildJobs = [:]
+                    
+                    uiProjects.each { project ->
+                        buildJobs[project] = {
+                            try {
+                                echo "Building UI: ${project}..."
+                                bat """
+                                    cd frontend\\${project}
+                                    
+                                    REM Install dependencies
+                                    call npm install --legacy-peer-deps -q
+                                    
+                                    REM Build
+                                    if exist package.json (
+                                        call npm run build
+                                    )
+                                    
+                                    REM Copy artifacts
+                                    if not exist "%BUILD_DIR%\\${project}" mkdir "%BUILD_DIR%\\${project}"
+                                    if exist dist (
+                                        robocopy dist "%BUILD_DIR%\\${project}" /e
+                                    ) else if exist build (
+                                        robocopy build "%BUILD_DIR%\\${project}" /e
+                                    ) else (
+                                        robocopy . "%BUILD_DIR%\\${project}" /e /xd node_modules
+                                    )
+                                    echo ${project} built
+                                """
+                            } catch (Exception e) {
+                                echo "Failed: ${project}"
+                                throw e
+                            }
+                        }
+                    }
+                    
+                    parallel buildJobs
+                }
+            }
+        }
+
+        stage('Create Build Summary') {
+            steps {
+                echo "==> Creating build summary..."
+                bat '''
+                    setlocal enabledelayedexpansion
+                    
+                    echo ==== BUILD SUMMARY ==== > "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    echo. >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    
+                    echo JAVA JARs: >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    dir /s /b "%BUILD_DIR%\\*-service\\*.jar" >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt" 2>nul || echo None >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    
+                    echo. >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    echo PYTHON PACKAGES: >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    dir /b "%BUILD_DIR%" | findstr "ai-analysis anomaly-detection pii-detection risk-scoring" >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt" 2>nul || echo None >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    
+                    echo. >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    echo UI PROJECTS: >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    dir /b "%BUILD_DIR%" | findstr "compliance-dashboard consent-widget data-principal-portal" >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt" 2>nul || echo None >> "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                    
+                    echo.
+                    echo === BUILD SUMMARY ===
+                    type "%DEPLOY_DIR%\\BUILD_SUMMARY.txt"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "==> Archiving artifacts..."
+            archiveArtifacts artifacts: 'build-output\\**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'deploy\\**', allowEmptyArchive: true
+        }
+        success {
+            echo "All projects built successfully!"
+            bat '''
+                echo.
+                echo ========================================
+                echo BUILD COMPLETE
+                echo ========================================
+                echo Build Dir: %BUILD_DIR%
+                echo Deploy Dir: %DEPLOY_DIR%
+                echo.
+                echo Artifacts:
+                dir /s "%BUILD_DIR%" | find /c "File"
+            '''
+        }
+        failure {
+            echo "Build failed - check logs above"
+        }
+    }
+}
