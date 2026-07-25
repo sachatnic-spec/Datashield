@@ -5,7 +5,7 @@ node {
   
   stage("Build") {
     dir('services/vendor-service') {
-      sh "mvn clean install -DskipTests"
+      bat "mvn clean install -DskipTests"
     }
   }
   
