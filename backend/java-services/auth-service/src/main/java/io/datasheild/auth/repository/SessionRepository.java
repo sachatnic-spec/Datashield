@@ -17,6 +17,9 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
     @Query("SELECT s FROM Session s WHERE s.userId = :userId AND s.tenantId = :tenantId AND s.status = 'ACTIVE' AND s.expiresAt > :now")
     List<Session> findActiveSessionsByUserAndTenant(@Param("userId") UUID userId, @Param("tenantId") UUID tenantId, @Param("now") LocalDateTime now);
 
+    @Query("SELECT s FROM Session s WHERE s.userId = :userId AND s.tenantId = :tenantId AND s.status = 'ACTIVE' AND s.createdAt > :since ORDER BY s.createdAt DESC")
+    List<Session> findRecentActiveSessions(@Param("userId") UUID userId, @Param("tenantId") UUID tenantId, @Param("since") LocalDateTime since);
+
     @Query("SELECT s FROM Session s WHERE s.accessToken = :token AND s.tenantId = :tenantId AND s.status = 'ACTIVE' AND s.expiresAt > :now")
     Optional<Session> findByAccessTokenAndTenantId(@Param("token") String token, @Param("tenantId") UUID tenantId, @Param("now") LocalDateTime now);
 

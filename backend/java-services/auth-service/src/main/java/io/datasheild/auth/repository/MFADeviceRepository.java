@@ -19,6 +19,16 @@ public interface MFADeviceRepository extends JpaRepository<MFADevice, UUID> {
     @Query("SELECT m FROM MFADevice m WHERE m.userId = :userId AND m.tenantId = :tenantId AND m.type = :type AND m.active = true")
     Optional<MFADevice> findByUserTenantAndType(@Param("userId") UUID userId, @Param("tenantId") UUID tenantId, @Param("type") MFADevice.MFAType type);
 
+    @Query("SELECT m FROM MFADevice m WHERE m.userId = :userId AND m.tenantId = :tenantId AND m.type = :type AND m.active = :active")
+    Optional<MFADevice> findByUserIdAndTenantIdAndTypeAndActive(
+            @Param("userId") UUID userId, 
+            @Param("tenantId") UUID tenantId, 
+            @Param("type") MFADevice.MFAType type, 
+            @Param("active") Boolean active);
+
+    @Query("SELECT m FROM MFADevice m WHERE m.userId = :userId AND m.tenantId = :tenantId")
+    List<MFADevice> findAllByUserIdAndTenantId(@Param("userId") UUID userId, @Param("tenantId") UUID tenantId);
+
     @Query("SELECT m FROM MFADevice m WHERE m.userId = :userId AND m.tenantId = :tenantId AND m.verified = true AND m.active = true")
     List<MFADevice> findVerifiedDevicesByUserAndTenant(@Param("userId") UUID userId, @Param("tenantId") UUID tenantId);
 

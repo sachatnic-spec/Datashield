@@ -18,9 +18,13 @@ import io.datasheild.auth.repository.SessionRepository;
 import io.datasheild.auth.repository.UserRepository;
 import io.datasheild.auth.util.JwtTokenProvider;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Base64;
 
 @Service
 @Slf4j
@@ -42,7 +46,7 @@ public class AuthService {
     private PasswordEncoder passwordEncoder;
 
     @Transactional
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         UUID tenantId = UUID.fromString(request.getTenantId());
 
         // Find user
@@ -78,23 +82,27 @@ public class AuthService {
 
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), tenantId);
 
-        // Create session
+        // Create session with device tracking
         Session session = Session.builder()
                 .userId(user.getId())
                 .tenantId(tenantId)
                 .accessToken(accessToken)
-                .tokenHash(hashToken(accessToken))
+                .tokenHash(secureHashToken(accessToken))
                 .refreshToken(refreshToken)
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
                 .expiresAt(LocalDateTime.now().plusSeconds(3600))  // 1 hour
                 .status(Session.SessionStatus.ACTIVE)
                 .build();
         sessionRepository.save(session);
 
-        // Store refresh token (hashed)
+        // Store refresh token (hashed) with device context
         RefreshToken storedToken = RefreshToken.builder()
                 .userId(user.getId())
                 .tenantId(tenantId)
-                .tokenHash(hashToken(refreshToken))
+                .tokenHash(secureHashToken(refreshToken))
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
                 .status(RefreshToken.TokenStatus.VALID)
                 .expiresAt(LocalDateTime.now().plusSeconds(604800))  // 7 days
                 .build();
@@ -104,15 +112,15 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        log.info("User successfully logged in: {} in tenant: {}", user.getEmail(), tenantId);
+        log.info("User successfully logged in: {} in tenant: {} from IP: {}", user.getEmail(), tenantId, ipAddress);
 
         return buildLoginResponse(user, accessToken, refreshToken);
     }
 
     @Transactional
-    public LoginResponse refreshAccessToken(RefreshTokenRequest request) {
+    public LoginResponse refreshAccessToken(RefreshTokenRequest request, String ipAddress, String userAgent) {
         UUID tenantId = UUID.fromString(request.getTenantId());
-        String tokenHash = hashToken(request.getRefreshToken());
+        String tokenHash = secureHashToken(request.getRefreshToken());
 
         // Validate refresh token
         RefreshToken storedToken = refreshTokenRepository.findValidTokenByHashAndTenant(
@@ -124,6 +132,13 @@ public class AuthService {
 
         if (!user.getStatus().equals(User.UserStatus.ACTIVE)) {
             throw new UnauthorizedException("User account is not active");
+        }
+
+        // Check for IP change (optional step-up auth trigger)
+        if (storedToken.getIpAddress() != null && !storedToken.getIpAddress().equals(ipAddress)) {
+            log.warn("IP address change detected for user {} - Old: {}, New: {}", 
+                    user.getEmail(), storedToken.getIpAddress(), ipAddress);
+            // In production: trigger step-up authentication
         }
 
         // Mark old token as used and generate new one
@@ -140,17 +155,19 @@ public class AuthService {
 
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), tenantId);
 
-        // Create new refresh token record
+        // Create new refresh token record with device context
         RefreshToken newStoredToken = RefreshToken.builder()
                 .userId(user.getId())
                 .tenantId(tenantId)
-                .tokenHash(hashToken(newRefreshToken))
+                .tokenHash(secureHashToken(newRefreshToken))
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
                 .status(RefreshToken.TokenStatus.VALID)
                 .expiresAt(LocalDateTime.now().plusSeconds(604800))
                 .build();
         refreshTokenRepository.save(newStoredToken);
 
-        log.info("Access token refreshed for user: {} in tenant: {}", user.getEmail(), tenantId);
+        log.info("Access token refreshed for user: {} in tenant: {} from IP: {}", user.getEmail(), tenantId, ipAddress);
 
         return buildLoginResponse(user, newAccessToken, newRefreshToken);
     }
@@ -183,8 +200,15 @@ public class AuthService {
                 .build();
     }
 
-    private String hashToken(String token) {
-        // Simple SHA-256 hash for storage (in production, use bcrypt)
-        return Integer.toHexString(token.hashCode());
+    private String secureHashToken(String token) {
+        try {
+            // Use SHA-256 for secure hashing (not cryptographic key material)
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("SHA-256 algorithm not available", e);
+            throw new InternalServerException("Token hashing failed");
+        }
     }
 }
