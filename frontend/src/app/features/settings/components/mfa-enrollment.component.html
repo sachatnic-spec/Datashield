@@ -1,0 +1,184 @@
+<div class="mfa-enrollment-container">
+  <div class="card">
+    <!-- Header -->
+    <div class="card-header">
+      <h2>Multi-Factor Authentication Setup</h2>
+      <p class="text-muted">Secure your account with two-factor authentication</p>
+    </div>
+
+    <div class="card-body">
+
+      <!-- Step 1: Select MFA Type -->
+      <div *ngIf="step === 'select'" class="step-container">
+        <h3>Choose Authentication Method</h3>
+        <div class="mfa-options">
+          <button class="mfa-option-btn" (click)="selectMFAType('totp')">
+            <div class="option-icon">📱</div>
+            <div class="option-title">Authenticator App</div>
+            <div class="option-desc">Use Google Authenticator, Authy, or Microsoft Authenticator</div>
+          </button>
+          
+          <button class="mfa-option-btn" disabled title="Coming soon">
+            <div class="option-icon">📧</div>
+            <div class="option-title">Email (Coming Soon)</div>
+            <div class="option-desc">Receive codes via email</div>
+          </button>
+          
+          <button class="mfa-option-btn" disabled title="Coming soon">
+            <div class="option-icon">📱💬</div>
+            <div class="option-title">SMS (Coming Soon)</div>
+            <div class="option-desc">Receive codes via text message</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Setup TOTP -->
+      <div *ngIf="step === 'setup'" class="step-container">
+        <h3>Step 1: Scan QR Code</h3>
+        
+        <div class="setup-content">
+          <div class="qr-section">
+            <p class="setup-instruction">
+              Open your authenticator app and scan this QR code:
+            </p>
+            
+            <div class="qr-code-container">
+              <img [src]="qrCodeDataUrl" alt="TOTP QR Code" class="qr-code">
+            </div>
+            
+            <div class="or-divider">OR</div>
+            
+            <div class="manual-entry">
+              <p>Enter this code manually:</p>
+              <div class="secret-code">{{ secret }}</div>
+              <button type="button" class="btn btn-sm btn-outline" (click)="copyToClipboard(secret)">
+                Copy Secret
+              </button>
+            </div>
+          </div>
+
+          <div class="setup-guide">
+            <h4>Setup Instructions:</h4>
+            <ol>
+              <li>Download an authenticator app:
+                <ul>
+                  <li><a href="https://support.google.com/accounts/answer/1066447" target="_blank">Google Authenticator</a></li>
+                  <li><a href="https://authy.com/" target="_blank">Authy</a></li>
+                  <li><a href="https://www.microsoft.com/authenticator" target="_blank">Microsoft Authenticator</a></li>
+                </ul>
+              </li>
+              <li>Open the app and add a new account</li>
+              <li>Scan the QR code or enter the code manually</li>
+              <li>Enter the 6-digit code you see in the app below</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="verificationCode" class="form-label">
+            <strong>Enter the 6-digit code from your authenticator app:</strong>
+          </label>
+          <div class="code-input-group">
+            <input 
+              type="text" 
+              id="verificationCode"
+              class="form-control code-input" 
+              [(ngModel)]="verificationCode"
+              placeholder="000000"
+              maxlength="6"
+              pattern="\d{6}"
+              inputmode="numeric"
+              (keyup.enter)="verifyTOTPCode()"
+            >
+            <button 
+              type="button" 
+              class="btn btn-primary"
+              (click)="verifyTOTPCode()"
+              [disabled]="isVerifying || verificationCode.length !== 6"
+            >
+              <span *ngIf="!isVerifying">Verify & Continue</span>
+              <span *ngIf="isVerifying">Verifying...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Verify Code -->
+      <!-- (Note: Verification happens in Step 2, this could be a confirmation screen) -->
+
+      <!-- Step 4: Success & Backup Codes -->
+      <div *ngIf="step === 'success'" class="step-container">
+        <div class="success-section">
+          <div class="success-icon">✅</div>
+          <h3>MFA Successfully Enabled!</h3>
+          <p class="success-message">
+            Your authenticator app is now linked to your account.
+          </p>
+        </div>
+
+        <div class="backup-codes-section">
+          <h4>⚠️ Save Your Backup Codes</h4>
+          <p class="backup-warning">
+            Store these codes in a secure location. If you lose access to your authenticator app,
+            you can use one backup code to regain access to your account.
+          </p>
+
+          <div class="backup-codes-display">
+            <div class="code-grid">
+              <div *ngFor="let code of backupCodes" class="backup-code">{{ code }}</div>
+            </div>
+          </div>
+
+          <div class="backup-actions">
+            <button type="button" class="btn btn-success" (click)="downloadBackupCodes()">
+              📥 Download Codes
+            </button>
+            <button type="button" class="btn btn-outline" (click)="copyBackupCodesToClipboard()">
+              📋 Copy to Clipboard
+            </button>
+          </div>
+
+          <div class="backup-confirm">
+            <label class="checkbox">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupCodesDownloaded"
+              >
+              <span>I have saved my backup codes in a secure location</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="success-actions">
+          <button 
+            type="button" 
+            class="btn btn-primary"
+            [disabled]="!backupCodesDownloaded"
+            (click)="startOver()"
+          >
+            ✓ Complete Setup
+          </button>
+        </div>
+
+        <div class="next-steps">
+          <h4>What's Next?</h4>
+          <ul>
+            <li>Your MFA device is now active</li>
+            <li>On next login, you'll need to enter a code from your authenticator app</li>
+            <li>Codes change every 30 seconds</li>
+            <li>You can add more devices in Settings</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="card-footer">
+      <small class="text-muted">
+        <strong>Security Note:</strong> Multi-factor authentication significantly improves your account security.
+        Keep your authenticator app secure and never share your recovery codes.
+      </small>
+    </div>
+  </div>
+</div>

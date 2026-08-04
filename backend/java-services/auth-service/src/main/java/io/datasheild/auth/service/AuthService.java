@@ -45,6 +45,12 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private MFAService mfaService;
+
+    @Autowired
+    private DeviceAnomalyService anomalyService;
+
     @Transactional
     public LoginResponse login(LoginRequest request, String ipAddress, String userAgent) {
         UUID tenantId = UUID.fromString(request.getTenantId());
@@ -68,8 +74,37 @@ public class AuthService {
         }
 
         // Validate MFA if enabled
-        if (user.getMfaEnabled() && (request.getMfaCode() == null || request.getMfaCode().isEmpty())) {
-            throw new UnauthorizedException("MFA code is required");
+        if (user.getMfaEnabled()) {
+            if (request.getMfaCode() == null || request.getMfaCode().isEmpty()) {
+                throw new UnauthorizedException("MFA code is required");
+            }
+            // Validate MFA code (TOTP, SMS, Email, WebAuthn)
+            boolean mfaValid = mfaService.validateTOTPCode(user.getId(), tenantId, request.getMfaCode());
+            if (!mfaValid) {
+                log.warn("Failed MFA validation for user: {} in tenant: {}", user.getEmail(), tenantId);
+                throw new UnauthorizedException("Invalid MFA code");
+            }
+            log.info("MFA validation successful for user: {}", user.getEmail());
+        }
+
+        // Detect device anomalies (IP change, device change, impossible travel)
+        try {
+            DeviceAnomalyService.AnomalyRiskLevel riskLevel = anomalyService.detectAnomalies(
+                    user.getId(), tenantId, ipAddress, userAgent);
+            
+            if (riskLevel == DeviceAnomalyService.AnomalyRiskLevel.HIGH) {
+                log.warn("High-risk login detected for user: {} in tenant: {} from IP: {}", 
+                    user.getEmail(), tenantId, ipAddress);
+                // In production: Trigger step-up authentication
+                // For now: Log the anomaly and allow login (can be gated by feature flag)
+                anomalyService.logAnomaly(user.getId(), tenantId, riskLevel, 
+                    "High-risk login: impossible travel or multiple anomalies");
+            } else if (riskLevel == DeviceAnomalyService.AnomalyRiskLevel.MEDIUM) {
+                log.info("Medium-risk login detected for user: {} - IP or device change", user.getEmail());
+            }
+        } catch (Exception e) {
+            log.error("Device anomaly detection failed", e);
+            // Don't block login if anomaly detection fails
         }
 
         // Generate tokens
@@ -139,6 +174,23 @@ public class AuthService {
             log.warn("IP address change detected for user {} - Old: {}, New: {}", 
                     user.getEmail(), storedToken.getIpAddress(), ipAddress);
             // In production: trigger step-up authentication
+        }
+
+        // Detect device anomalies during refresh (IP change, device change)
+        try {
+            DeviceAnomalyService.AnomalyRiskLevel riskLevel = anomalyService.detectAnomalies(
+                    user.getId(), tenantId, ipAddress, userAgent);
+            
+            if (riskLevel == DeviceAnomalyService.AnomalyRiskLevel.HIGH) {
+                log.warn("High-risk token refresh detected for user: {} in tenant: {} from IP: {}", 
+                    user.getEmail(), tenantId, ipAddress);
+                // In production: Trigger step-up authentication or block refresh
+            } else if (riskLevel == DeviceAnomalyService.AnomalyRiskLevel.MEDIUM) {
+                log.info("Medium-risk token refresh for user: {} - IP or device change detected", user.getEmail());
+            }
+        } catch (Exception e) {
+            log.error("Device anomaly detection failed during refresh", e);
+            // Don't block refresh if anomaly detection fails
         }
 
         // Mark old token as used and generate new one
