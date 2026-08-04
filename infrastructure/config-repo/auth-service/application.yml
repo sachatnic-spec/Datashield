@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild_auth
+    username: datasheild
+    password: datasheild_dev_pwd
+    hikari:
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS auth
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 10
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET:change-me-your-secret-key-minimum-256-bits-for-HS256}
+    expiration: 3600000
+    refresh-expiration: 86400000
+  mfa:
+    enabled: true
+  password:
+    min-length: 12
+    require-uppercase: true
+    require-special: true
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

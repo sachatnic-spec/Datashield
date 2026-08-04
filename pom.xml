@@ -16,19 +16,23 @@
 
     <!-- Modules -->
     <modules>
-        <module>libs/common-lib</module>
-        <module>libs/event-schemas</module>
-        <module>services/auth-service</module>
-        <module>services/consent-service</module>
-        <module>services/rights-service</module>
-        <module>services/breach-service</module>
-        <module>services/notification-service</module>
-        <module>services/audit-service</module>
-        <module>services/tenant-service</module>
-        <module>services/connector-service</module>
-        <module>services/webhook-service</module>
-        <module>services/siem-service</module>
-        <module>services/dpbi-service</module>
+        <module>backend/libraries/common-lib</module>
+        <module>backend/libraries/event-schemas</module>
+        <module>backend/java-services/service-registry</module>
+        <module>backend/java-services/api-gateway</module>
+        <module>backend/java-services/config-service</module>
+        <module>backend/java-services/auth-service</module>
+        <module>backend/java-services/consent-service</module>
+        <module>backend/java-services/rights-service</module>
+        <module>backend/java-services/breach-service</module>
+        <module>backend/java-services/notification-service</module>
+        <module>backend/java-services/grievance-service</module>
+        <module>backend/java-services/audit-service</module>
+        <module>backend/java-services/tenant-service</module>
+        <module>backend/java-services/connector-service</module>
+        <module>backend/java-services/webhook-service</module>
+        <module>backend/java-services/siem-service</module>
+        <module>backend/java-services/dpbi-service</module>
     </modules>
 
     <properties>
@@ -37,7 +41,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
         <!-- Spring Boot -->
-        <spring-boot.version>3.3.0</spring-boot.version>
+        <spring-boot.version>3.2.0</spring-boot.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
         
         <!-- Databases -->

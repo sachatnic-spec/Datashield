@@ -1,0 +1,560 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  postgres:
+    image: postgres:16-alpine
+    container_name: datasheild-postgres
+    environment:
+      POSTGRES_USER: datasheild
+      POSTGRES_PASSWORD: datasheild_dev_pwd
+      POSTGRES_DB: datasheild
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datasheild -d datasheild"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - datasheild
+
+  redis:
+    image: redis:7-alpine
+    container_name: datasheild-redis
+    command: redis-server --appendonly yes --requirepass datasheild_dev_pwd
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - datasheild
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: datasheild-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc -q 1 localhost 2181"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: datasheild-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: datasheild-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: datasheild-kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - datasheild
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: datasheild-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    networks:
+      - datasheild
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: datasheild-prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - datasheild
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: datasheild-grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - datasheild
+
+  # Application Services
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: auth-service
+    container_name: datasheild-auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8001:8001"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8001/v1/auth/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  consent-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: consent-service
+    container_name: datasheild-consent
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8002:8002"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8002/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rights-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: rights-service
+    container_name: datasheild-rights
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8003:8003"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8003/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  breach-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: breach-service
+    container_name: datasheild-breach
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8004:8004"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8004/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: notification-service
+    container_name: datasheild-notification
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8005:8005"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8005/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: audit-service
+    container_name: datasheild-audit
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8006:8006"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8006/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tenant-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tenant-service
+    container_name: datasheild-tenant
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PASSWORD: datasheild_dev_pwd
+    ports:
+      - "8007:8007"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8007/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-analysis:
+    image: python:3.11-slim
+    container_name: datasheild-ai-analysis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    working_dir: /workspace/backend/python-services/ai-analysis
+    volumes:
+      - .:/workspace
+    environment:
+      DATABASE_URL: postgresql://datasheild:datasheild_dev_pwd@postgres:5432/datasheild
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVICE_PORT: 8018
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8018"
+    ports:
+      - "8018:8018"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8018/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  pii-detection:
+    image: python:3.11-slim
+    container_name: datasheild-pii-detection
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    working_dir: /workspace/backend/python-services/pii-detection
+    volumes:
+      - .:/workspace
+    environment:
+      DATABASE_URL: postgresql://datasheild:datasheild_dev_pwd@postgres:5432/datasheild
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVICE_PORT: 8019
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8019"
+    ports:
+      - "8019:8019"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8019/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  risk-scoring:
+    image: python:3.11-slim
+    container_name: datasheild-risk-scoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    working_dir: /workspace/backend/python-services/risk-scoring
+    volumes:
+      - .:/workspace
+    environment:
+      DATABASE_URL: postgresql://datasheild:datasheild_dev_pwd@postgres:5432/datasheild
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVICE_PORT: 8020
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8020"
+    ports:
+      - "8020:8020"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8020/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  anomaly-detection:
+    image: python:3.11-slim
+    container_name: datasheild-anomaly-detection
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    working_dir: /workspace/backend/python-services/anomaly-detection
+    volumes:
+      - .:/workspace
+    environment:
+      DATABASE_URL: postgresql://datasheild:datasheild_dev_pwd@postgres:5432/datasheild
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVICE_PORT: 8021
+    command: >-
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8021"
+    ports:
+      - "8021:8021"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8021/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  connector-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: connector-service
+    container_name: datasheild-connector
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild?currentSchema=connector
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8022:8022"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8022/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webhook-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: webhook-service
+    container_name: datasheild-webhook
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild?currentSchema=webhook
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8023:8023"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8023/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  siem-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: siem-service
+    container_name: datasheild-siem
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild?currentSchema=siem
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8024:8024"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8024/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dpbi-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dpbi-service
+    container_name: datasheild-dpbi
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/datasheild?currentSchema=dpbi
+      SPRING_DATASOURCE_USERNAME: datasheild
+      SPRING_DATASOURCE_PASSWORD: datasheild_dev_pwd
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8025:8025"
+    networks:
+      - datasheild
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  datasheild:
+    driver: bridge
+

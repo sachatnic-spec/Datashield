@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: siem-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=siem
+    username: datasheild
+    password: datasheild_dev_pwd
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: siem
+  sql:
+    init:
+      mode: always
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      transaction-id-prefix: siem-tx-
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: siem-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        isolation.level: read_committed
+        spring.json.trusted.packages: "*"
+  task:
+    scheduling:
+      pool:
+        size: 4
+  cloud:
+    discovery:
+      enabled: true
+server:
+  port: 8018
+logging:
+  level:
+    root: INFO
+    com.datasheild: INFO
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+siem:
+  auto-create-threshold: HIGH
+  splunk:
+    hec-url: http://localhost:8088
+    hec-token: splunk-dev-token
+  qradar:
+    hec-url: http://localhost:8443
+    hec-token: qradar-dev-token
+  sentinel:
+    hec-url: http://localhost:8081/api/logs
+    hec-token: sentinel-dev-token
+
+# Eureka Configuration
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

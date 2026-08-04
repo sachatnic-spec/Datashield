@@ -1,0 +1,329 @@
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: authServiceCB
+                fallbackUri: forward:/fallback/auth
+
+        - id: grievance-service
+          uri: lb://grievance-service
+          predicates:
+            - Path=/api/grievance/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: grievanceServiceCB
+                fallbackUri: forward:/fallback/grievance
+
+        - id: consent-service
+          uri: lb://consent-service
+          predicates:
+            - Path=/api/consent/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: consentServiceCB
+                fallbackUri: forward:/fallback/consent
+
+        - id: breach-service
+          uri: lb://breach-service
+          predicates:
+            - Path=/api/breach/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: breachServiceCB
+                fallbackUri: forward:/fallback/breach
+
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/audit/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: auditServiceCB
+                fallbackUri: forward:/fallback/audit
+
+        - id: policy-service
+          uri: lb://policy-service
+          predicates:
+            - Path=/api/policy/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: policyServiceCB
+                fallbackUri: forward:/fallback/policy
+
+        - id: rights-service
+          uri: lb://rights-service
+          predicates:
+            - Path=/api/rights/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: rightsServiceCB
+                fallbackUri: forward:/fallback/rights
+
+        - id: tenant-service
+          uri: lb://tenant-service
+          predicates:
+            - Path=/api/tenant/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: tenantServiceCB
+                fallbackUri: forward:/fallback/tenant
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCB
+                fallbackUri: forward:/fallback/notification
+
+        - id: analytics-service
+          uri: lb://analytics-service
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: analyticsServiceCB
+                fallbackUri: forward:/fallback/analytics
+
+        - id: connector-service
+          uri: lb://connector-service
+          predicates:
+            - Path=/api/connector/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: connectorServiceCB
+                fallbackUri: forward:/fallback/connector
+
+        - id: data-discovery-service
+          uri: lb://data-discovery-service
+          predicates:
+            - Path=/api/discovery/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: discoveryServiceCB
+                fallbackUri: forward:/fallback/discovery
+
+        - id: data-classification-service
+          uri: lb://data-classification-service
+          predicates:
+            - Path=/api/classification/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: classificationServiceCB
+                fallbackUri: forward:/fallback/classification
+
+        - id: data-lineage-service
+          uri: lb://data-lineage-service
+          predicates:
+            - Path=/api/lineage/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: lineageServiceCB
+                fallbackUri: forward:/fallback/lineage
+
+        - id: dpbi-service
+          uri: lb://dpbi-service
+          predicates:
+            - Path=/api/dpbi/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: dpbiServiceCB
+                fallbackUri: forward:/fallback/dpbi
+
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/report/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: reportServiceCB
+                fallbackUri: forward:/fallback/report
+
+        - id: retention-service
+          uri: lb://retention-service
+          predicates:
+            - Path=/api/retention/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: retentionServiceCB
+                fallbackUri: forward:/fallback/retention
+
+        - id: search-service
+          uri: lb://search-service
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: searchServiceCB
+                fallbackUri: forward:/fallback/search
+
+        - id: siem-service
+          uri: lb://siem-service
+          predicates:
+            - Path=/api/siem/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: siemServiceCB
+                fallbackUri: forward:/fallback/siem
+
+        - id: vendor-service
+          uri: lb://vendor-service
+          predicates:
+            - Path=/api/vendor/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: vendorServiceCB
+                fallbackUri: forward:/fallback/vendor
+
+        - id: webhook-service
+          uri: lb://webhook-service
+          predicates:
+            - Path=/api/webhook/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: webhookServiceCB
+                fallbackUri: forward:/fallback/webhook
+
+        - id: workflow-service
+          uri: lb://workflow-service
+          predicates:
+            - Path=/api/workflow/**
+          filters:
+            - StripPrefix=2
+            - name: CircuitBreaker
+              args:
+                name: workflowServiceCB
+                fallbackUri: forward:/fallback/workflow
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+    instances:
+      authServiceCB:
+        baseConfig: default
+      grievanceServiceCB:
+        baseConfig: default
+      consentServiceCB:
+        baseConfig: default
+      breachServiceCB:
+        baseConfig: default
+      auditServiceCB:
+        baseConfig: default
+      policyServiceCB:
+        baseConfig: default
+      rightsServiceCB:
+        baseConfig: default
+      tenantServiceCB:
+        baseConfig: default
+      notificationServiceCB:
+        baseConfig: default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

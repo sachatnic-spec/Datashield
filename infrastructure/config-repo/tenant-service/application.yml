@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild_tenant
+    username: datasheild
+    password: datasheild_dev_pwd
+    hikari:
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS tenant
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+  kafka:
+    bootstrap-servers: localhost:9092
+
+tenant:
+  isolation-level: SCHEMA
+  feature-flags:
+    multi-region: true
+    advanced-analytics: true
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

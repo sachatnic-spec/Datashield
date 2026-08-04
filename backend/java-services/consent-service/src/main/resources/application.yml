@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: consent-service
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+      hibernate.default_schema: consent
+  datasource:
+    url: jdbc:postgresql://localhost:5432/datasheild?currentSchema=consent
+    username: datasheild
+    password: datasheild_dev_pwd
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 600000
+  redis:
+    host: localhost
+    port: 6379
+    password: datasheild_dev_pwd
+    timeout: 60000
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 0
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      group-id: consent-service-consumer
+      auto-offset-reset: earliest
+    properties:
+      connections.max.idle.ms: 540000
+      reconnect.backoff.ms: 50
+      reconnect.backoff.max.ms: 1000
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+  task:
+    scheduling:
+      pool:
+        size: 5
+      thread-name-prefix: consent-scheduler-
+  cloud:
+    discovery:
+      enabled: true
+
+server:
+  port: 8002
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    io.datasheild: DEBUG
+    org.hibernate.SQL: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: consent-service
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+
+# Eureka Configuration
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
